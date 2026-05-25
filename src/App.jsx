@@ -58,6 +58,8 @@ export default function FinanceTracker() {
   // Statement state
   const [stmtYear,      setStmtYear]      = useState(new Date().getFullYear());
   const [openMonth,     setOpenMonth]     = useState(null); // "YYYY-MM" or null
+  const [activeDetailMonth, setActiveDetailMonth] = useState(null); // { key: "YYYY-MM", year: number, monthIdx: number } or null
+  const [detailCat,     setDetailCat]     = useState(null); // category filter for detail view
 
   // Yearly Summary state
   const [showYearlySummary, setShowYearlySummary] = useState(false);
@@ -608,6 +610,153 @@ export default function FinanceTracker() {
       {/* Yearly Summary full-screen overlay */}
       {showYearlySummary && <YearlySummary />}
 
+      {/* Monthly Detail full-screen overlay */}
+      {activeDetailMonth && (() => {
+        const { key, year, monthIdx, name: mShortName } = activeDetailMonth;
+        const mName  = `${mShortName} ${year} Summary`;
+        const mTxns  = transactions.filter((t) => t.date.startsWith(key)).sort((a, b) => new Date(b.date) - new Date(a.date));
+        const mTotal = mTxns.reduce((s, t) => s + t.amount, 0);
+        const mCatTotals = {};
+        mTxns.forEach((t) => { mCatTotals[t.category] = (mCatTotals[t.category] || 0) + t.amount; });
+        const mCatSorted = Object.entries(mCatTotals).sort((a, b) => b[1] - a[1]);
+        const visibleTxns = detailCat ? mTxns.filter((t) => t.category === detailCat) : mTxns;
+        const activeCatObj = detailCat ? getCat(detailCat) : null;
+
+        // prev/next navigation across all 12 months
+        const prevMonthIdx = monthIdx > 0 ? monthIdx - 1 : null;
+        const nextMonthIdx = monthIdx < 11 ? monthIdx + 1 : null;
+        const goToMonth = (idx) => {
+          const newKey = monthKey(year, idx);
+          setActiveDetailMonth({ key: newKey, year, monthIdx: idx, name: MONTH_NAMES[idx] });
+          setDetailCat(null);
+        };
+
+        return (
+          <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#F8F7F4", overflowY: "auto", fontFamily: "'DM Sans', sans-serif" }}>
+            {/* Sticky top nav */}
+            <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(248,247,244,0.94)", backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(226,232,240,0.6)", padding: "14px 20px", display: "flex", alignItems: "center", gap: 10 }}>
+              <button onClick={() => { setActiveDetailMonth(null); setDetailCat(null); }}
+                style={{ display: "flex", alignItems: "center", gap: 6, background: "#FFFFFF", border: "none", cursor: "pointer", padding: "9px 16px", borderRadius: 99, fontFamily: "inherit", fontSize: 13, fontWeight: 700, color: "#334155", boxShadow: "0 2px 8px rgba(15,23,42,0.08)", flexShrink: 0 }}>
+                <ArrowLeft size={15} /> Statements
+              </button>
+              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                <button onClick={() => prevMonthIdx !== null && goToMonth(prevMonthIdx)} disabled={prevMonthIdx === null}
+                  style={{ width: 34, height: 34, borderRadius: 99, border: "none", display: "flex", alignItems: "center", justifyContent: "center", background: prevMonthIdx !== null ? "#FFFFFF" : "#F1F5F9", color: prevMonthIdx !== null ? "#334155" : "#CBD5E1", cursor: prevMonthIdx !== null ? "pointer" : "default", boxShadow: prevMonthIdx !== null ? "0 2px 8px rgba(15,23,42,0.08)" : "none" }}>
+                  <ChevronLeft size={16} />
+                </button>
+                <span style={{ fontSize: 14, fontWeight: 800, color: "#0F172A", minWidth: 110, textAlign: "center" }}>{mShortName} {year}</span>
+                <button onClick={() => nextMonthIdx !== null && goToMonth(nextMonthIdx)} disabled={nextMonthIdx === null}
+                  style={{ width: 34, height: 34, borderRadius: 99, border: "none", display: "flex", alignItems: "center", justifyContent: "center", background: nextMonthIdx !== null ? "#FFFFFF" : "#F1F5F9", color: nextMonthIdx !== null ? "#334155" : "#CBD5E1", cursor: nextMonthIdx !== null ? "pointer" : "default", boxShadow: nextMonthIdx !== null ? "0 2px 8px rgba(15,23,42,0.08)" : "none" }}>
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+              <div style={{ width: 100, flexShrink: 0 }} />
+            </div>
+
+            <div style={{ maxWidth: 430, margin: "0 auto", padding: "0 16px 100px" }}>
+              {/* Hero total */}
+              <div style={{ padding: "28px 4px 20px" }}>
+                <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em" }}>{mShortName} {year} Summary</p>
+                <p style={{ margin: 0, fontSize: 48, fontWeight: 800, letterSpacing: "-2.5px", color: "#0F172A", lineHeight: 1, fontFamily: "'DM Mono', monospace" }}>{fmt(mTotal)}</p>
+                <p style={{ margin: "10px 0 0", fontSize: 13, color: "#94A3B8", fontWeight: 500 }}>{mTxns.length} transaction{mTxns.length !== 1 ? "s" : ""} recorded</p>
+              </div>
+
+              {mTxns.length === 0 ? (
+                /* Empty state */
+                <div style={{ ...T.card, padding: "56px 24px", textAlign: "center", marginTop: 8 }}>
+                  <div style={{ width: 64, height: 64, borderRadius: 24, background: "#F1F5F9", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                    <Wallet size={28} color="#CBD5E1" />
+                  </div>
+                  <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: "#94A3B8" }}>No expenses recorded</p>
+                  <p style={{ margin: 0, fontSize: 13, color: "#CBD5E1", fontWeight: 500 }}>this month</p>
+                </div>
+              ) : (
+                <>
+                  {/* Category breakdown cards */}
+                  <p style={{ ...T.label, margin: "0 0 10px", paddingLeft: 4 }}>Categories</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+                    {mCatSorted.map(([catVal, amt]) => {
+                      const cat = getCat(catVal);
+                      const pct = mTotal > 0 ? amt / mTotal : 0;
+                      const isActive = detailCat === catVal;
+                      const catCount = mTxns.filter((t) => t.category === catVal).length;
+                      return (
+                        <button key={catVal} onClick={() => setDetailCat(isActive ? null : catVal)}
+                          style={{ width: "100%", border: "none", fontFamily: "inherit", cursor: "pointer", textAlign: "left", padding: "16px 20px", borderRadius: 22, background: isActive ? cat.pastelBg : "#FFFFFF", outline: isActive ? `2.5px solid ${cat.bar}` : "2.5px solid transparent", boxShadow: isActive ? `0 6px 24px ${cat.bar}30` : "0 2px 12px rgba(15,23,42,0.06)", transition: "all 0.18s" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                            <div style={{ width: 44, height: 44, borderRadius: 16, flexShrink: 0, background: isActive ? "#FFFFFF" : cat.pastelBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: isActive ? `0 2px 8px ${cat.bar}40` : "none", transition: "all 0.18s" }}>{cat.icon}</div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+                                <span style={{ fontSize: 15, fontWeight: 800, color: isActive ? cat.pastelText : "#0F172A" }}>{cat.label}</span>
+                                <span style={{ ...T.mono, fontSize: 16, fontWeight: 800, color: isActive ? cat.pastelText : "#0F172A" }}>{fmt(amt)}</span>
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 2 }}>
+                                <span style={{ fontSize: 11, color: isActive ? cat.pastelText : "#94A3B8", fontWeight: 500, opacity: isActive ? 0.75 : 1 }}>{catCount} transaction{catCount !== 1 ? "s" : ""}</span>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: isActive ? cat.pastelText : "#94A3B8" }}>{(pct * 100).toFixed(0)}%</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ height: 6, background: isActive ? `${cat.bar}30` : "#F1F5F9", borderRadius: 99, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${pct * 100}%`, background: cat.bar, borderRadius: 99, transition: "width 0.45s cubic-bezier(0.34,1.56,0.64,1)" }} />
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Transaction list header */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, paddingLeft: 4 }}>
+                    <p style={{ ...T.label, margin: 0 }}>
+                      {detailCat ? `${activeCatObj.icon} ${activeCatObj.label}` : "All Transactions"} · {visibleTxns.length}
+                    </p>
+                    {detailCat && (
+                      <button onClick={() => setDetailCat(null)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#F1F5F9", border: "none", cursor: "pointer", padding: "5px 12px", borderRadius: 99, fontFamily: "inherit", fontSize: 11, fontWeight: 700, color: "#64748B" }}>
+                        <X size={11} /> Show all
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Category total banner when filtered */}
+                  {detailCat && (
+                    <div style={{ padding: "14px 20px", borderRadius: 18, marginBottom: 12, background: activeCatObj.pastelBg, border: `1.5px solid ${activeCatObj.bar}40` }}>
+                      <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 600, color: activeCatObj.pastelText, textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.7 }}>Spent on {activeCatObj.label}</p>
+                      <p style={{ margin: 0, fontSize: 28, fontWeight: 800, letterSpacing: "-1px", color: activeCatObj.pastelText, fontFamily: "'DM Mono', monospace" }}>{fmt(mCatTotals[detailCat])}</p>
+                    </div>
+                  )}
+
+                  {/* Transactions */}
+                  {visibleTxns.map((tx) => {
+                    const cat = getCat(tx.category);
+                    const tags = extractTags(tx.note);
+                    const isDeleting = deletingId === tx.id;
+                    return (
+                      <div key={tx.id} style={{ ...T.card, padding: "14px 18px", marginBottom: 9, display: "flex", alignItems: "center", gap: 13, opacity: isDeleting ? 0 : 1, transform: isDeleting ? "translateX(50px)" : "none", transition: "all 0.28s" }}>
+                        <div style={{ width: 42, height: 42, borderRadius: 15, background: cat.pastelBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, flexShrink: 0 }}>{cat.icon}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>{cat.label}</span>
+                            {tx.split && <span style={{ fontSize: 10, fontWeight: 700, background: "#EEF2FF", color: T.indigo, padding: "1px 6px", borderRadius: 5 }}>split</span>}
+                            {tx.recurringId && <span style={{ fontSize: 10, fontWeight: 700, background: "#FEFCE8", color: "#A16207", padding: "1px 6px", borderRadius: 5 }}>auto</span>}
+                          </div>
+                          <p style={{ ...T.muted, margin: "2px 0 0", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.note || "No note"} · {fmtDate(tx.date)}</p>
+                          {tags.length > 0 && (
+                            <div style={{ display: "flex", gap: 3, marginTop: 4, flexWrap: "wrap" }}>
+                              {tags.map((tag) => <span key={tag} style={{ fontSize: 10, fontWeight: 700, background: "#EEF2FF", color: "#6366F1", padding: "1px 7px", borderRadius: 99 }}>{tag}</span>)}
+                            </div>
+                          )}
+                        </div>
+                        <span style={{ ...T.mono, fontSize: 14, fontWeight: 700, color: "#EF4444", flexShrink: 0 }}>−{fmt(tx.amount)}</span>
+                        <button onClick={() => handleDelete(tx.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 5, color: "#CBD5E1", flexShrink: 0 }}><Trash2 size={14} /></button>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Toast */}
       {toast && (
         <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", zIndex: 999, background: "#0F172A", color: "#F8FAFC", padding: "11px 22px", borderRadius: 99, fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", boxShadow: "0 8px 32px rgba(15,23,42,0.22)" }}>
@@ -845,140 +994,247 @@ export default function FinanceTracker() {
       )}
 
       {/* ══════════════════════════════════ STATEMENT TAB ═════════════════════ */}
-      {tab === "statement" && (
-        <div style={{ padding: "0 16px" }}>
+      {tab === "statement" && (() => {
 
-          {/* Year selector */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <SectionLabel style={{ margin: 0 }}>Year</SectionLabel>
-            <div style={{ display: "flex", gap: 6 }}>
-              {availableYears.map((y) => (
-                <button key={y} onClick={() => { setStmtYear(parseInt(y)); setOpenMonth(null); }} style={{
-                  padding: "6px 14px", borderRadius: 99, border: "none", cursor: "pointer", fontFamily: "inherit",
-                  fontSize: 13, fontWeight: 700,
-                  background: stmtYear === parseInt(y) ? T.indigo : "#FFFFFF",
-                  color: stmtYear === parseInt(y) ? "#FFFFFF" : "#64748B",
-                  boxShadow: stmtYear === parseInt(y) ? "0 2px 10px rgba(79,70,229,0.3)" : "0 1px 4px rgba(15,23,42,0.06)"
-                }}>{y}</button>
-              ))}
-            </div>
-          </div>
+        // ── Full-screen month detail ───────────────────────────────────────
+        if (openMonth) {
+          const mData = yearMonthData.find((m) => m.key === openMonth);
+          const mIdx  = mData ? mData.monthIdx : 0;
+          const mName = mData ? `${MONTH_NAMES[mIdx]} ${stmtYear}` : "";
+          const mTxns = mData ? [...mData.txns].sort((a, b) => new Date(b.date) - new Date(a.date)) : [];
+          const mTotal = mData ? mData.total : 0;
+          const mCatTotals = {};
+          mTxns.forEach((t) => { mCatTotals[t.category] = (mCatTotals[t.category] || 0) + t.amount; });
+          const mCatSorted = Object.entries(mCatTotals).sort((a, b) => b[1] - a[1]);
 
-          {/* Yearly total card */}
-          <div style={{ ...T.card, padding: "22px 24px", marginBottom: 14 }}>
-            <p style={{ ...T.label, margin: "0 0 6px" }}>{stmtYear} total</p>
-            <p style={{ ...T.h1, fontSize: 34, marginBottom: 18 }}>{fmt(yearTotal)}</p>
+          // Category filter — stored in openMonth-scoped state via key trick
+          // We use a simple module-level variable workaround since this is inside render
+          const [stmtCat, setStmtCat] = useState(null);
+          const visibleTxns = stmtCat ? mTxns.filter((t) => t.category === stmtCat) : mTxns;
+          const activeCat = stmtCat ? getCat(stmtCat) : null;
 
-            {/* Bar chart — 12 months */}
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 72 }}>
-              {yearMonthData.map(({ name, key, total, monthIdx }) => {
-                const heightPct = maxMonthAmt > 0 ? total / maxMonthAmt : 0;
-                const isNow = key === currentMonth();
-                const isOpen = key === openMonth;
-                return (
-                  <div key={key} onClick={() => setOpenMonth(isOpen ? null : key)}
-                    style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: total > 0 ? "pointer" : "default" }}>
-                    <div style={{ width: "100%", height: 56, display: "flex", alignItems: "flex-end" }}>
-                      <div style={{
-                        width: "100%", height: `${Math.max(heightPct * 100, total > 0 ? 8 : 3)}%`,
-                        minHeight: total > 0 ? 6 : 2,
-                        borderRadius: "6px 6px 3px 3px",
-                        background: isOpen ? T.indigo : isNow ? "#818CF8" : total > 0 ? "#C7D2FE" : "#F1F5F9",
-                        transition: "all 0.3s"
-                      }} />
+          // prev / next month navigation (skip empty months too so user can see all)
+          const allKeys = yearMonthData.map((m) => m.key);
+          const curKeyIdx = allKeys.indexOf(openMonth);
+          const prevKey = curKeyIdx > 0 ? allKeys[curKeyIdx - 1] : null;
+          const nextKey = curKeyIdx < allKeys.length - 1 ? allKeys[curKeyIdx + 1] : null;
+
+          return (
+            <div style={{ position: "fixed", inset: 0, zIndex: 150, background: "#F8F7F4", overflowY: "auto", fontFamily: "'DM Sans', sans-serif" }}>
+              {/* Sticky top nav */}
+              <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(248,247,244,0.94)", backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(226,232,240,0.6)", padding: "14px 20px", display: "flex", alignItems: "center", gap: 10 }}>
+                <button onClick={() => { setOpenMonth(null); setStmtCat(null); }} style={{ display: "flex", alignItems: "center", gap: 6, background: "#FFFFFF", border: "none", cursor: "pointer", padding: "9px 16px", borderRadius: 99, fontFamily: "inherit", fontSize: 13, fontWeight: 700, color: "#334155", boxShadow: "0 2px 8px rgba(15,23,42,0.08)", flexShrink: 0 }}>
+                  <ArrowLeft size={15} /> {stmtYear}
+                </button>
+                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                  <button onClick={() => { setStmtCat(null); setOpenMonth(prevKey); }} disabled={!prevKey} style={{ width: 34, height: 34, borderRadius: 99, border: "none", display: "flex", alignItems: "center", justifyContent: "center", background: prevKey ? "#FFFFFF" : "#F1F5F9", color: prevKey ? "#334155" : "#CBD5E1", cursor: prevKey ? "pointer" : "default", boxShadow: prevKey ? "0 2px 8px rgba(15,23,42,0.08)" : "none" }}>
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: "#0F172A", minWidth: 110, textAlign: "center" }}>{mName}</span>
+                  <button onClick={() => { setStmtCat(null); setOpenMonth(nextKey); }} disabled={!nextKey} style={{ width: 34, height: 34, borderRadius: 99, border: "none", display: "flex", alignItems: "center", justifyContent: "center", background: nextKey ? "#FFFFFF" : "#F1F5F9", color: nextKey ? "#334155" : "#CBD5E1", cursor: nextKey ? "pointer" : "default", boxShadow: nextKey ? "0 2px 8px rgba(15,23,42,0.08)" : "none" }}>
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+                <div style={{ width: 80, flexShrink: 0 }} />
+              </div>
+
+              <div style={{ maxWidth: 430, margin: "0 auto", padding: "0 16px 100px" }}>
+                {/* Hero total */}
+                <div style={{ padding: "28px 4px 16px" }}>
+                  <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em" }}>Total Spent</p>
+                  <p style={{ margin: 0, fontSize: 44, fontWeight: 800, letterSpacing: "-2px", color: "#0F172A", lineHeight: 1 }}>{fmt(mTotal)}</p>
+                  <p style={{ margin: "8px 0 0", fontSize: 13, color: "#94A3B8", fontWeight: 500 }}>{mTxns.length} transaction{mTxns.length !== 1 ? "s" : ""} in {mName}</p>
+                </div>
+
+                {mTxns.length === 0 ? (
+                  <div style={{ ...T.card, padding: "48px 24px", textAlign: "center", marginTop: 8 }}>
+                    <div style={{ width: 56, height: 56, borderRadius: 20, background: "#F1F5F9", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+                      <Wallet size={24} color="#94A3B8" />
                     </div>
-                    <span style={{ fontSize: 9, fontWeight: isNow ? 800 : 500, color: isOpen ? T.indigo : isNow ? "#4F46E5" : "#94A3B8", textAlign: "center" }}>{name}</span>
+                    <p style={{ ...T.muted, margin: 0, fontWeight: 500 }}>No transactions in {mName}</p>
                   </div>
-                );
-              })}
+                ) : (
+                  <>
+                    {/* ── Category cards — tappable ── */}
+                    <p style={{ ...T.label, margin: "0 0 10px", paddingLeft: 4 }}>Categories</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+                      {mCatSorted.map(([catVal, amt]) => {
+                        const cat = getCat(catVal);
+                        const pct = mTotal > 0 ? amt / mTotal : 0;
+                        const isActive = stmtCat === catVal;
+                        const catCount = mTxns.filter((t) => t.category === catVal).length;
+                        return (
+                          <button key={catVal} onClick={() => setStmtCat(isActive ? null : catVal)} style={{
+                            width: "100%", border: "none", fontFamily: "inherit", cursor: "pointer", textAlign: "left",
+                            padding: "16px 20px", borderRadius: 22,
+                            background: isActive ? cat.pastelBg : "#FFFFFF",
+                            outline: isActive ? `2.5px solid ${cat.bar}` : "2.5px solid transparent",
+                            boxShadow: isActive ? `0 6px 24px ${cat.bar}30` : "0 2px 12px rgba(15,23,42,0.06)",
+                            transition: "all 0.18s",
+                          }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                              <div style={{ width: 44, height: 44, borderRadius: 16, flexShrink: 0, background: isActive ? "#FFFFFF" : cat.pastelBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: isActive ? `0 2px 8px ${cat.bar}40` : "none", transition: "all 0.18s" }}>{cat.icon}</div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+                                  <span style={{ fontSize: 15, fontWeight: 800, color: isActive ? cat.pastelText : "#0F172A" }}>{cat.label}</span>
+                                  <span style={{ ...T.mono, fontSize: 16, fontWeight: 800, color: isActive ? cat.pastelText : "#0F172A" }}>{fmt(amt)}</span>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 2 }}>
+                                  <span style={{ fontSize: 11, color: isActive ? cat.pastelText : "#94A3B8", fontWeight: 500, opacity: isActive ? 0.75 : 1 }}>{catCount} transaction{catCount !== 1 ? "s" : ""}</span>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: isActive ? cat.pastelText : "#94A3B8" }}>{(pct * 100).toFixed(0)}%</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div style={{ height: 6, background: isActive ? `${cat.bar}30` : "#F1F5F9", borderRadius: 99, overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: `${pct * 100}%`, background: cat.bar, borderRadius: 99, transition: "width 0.45s cubic-bezier(0.34,1.56,0.64,1)" }} />
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* ── Transaction list header ── */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, paddingLeft: 4 }}>
+                      <p style={{ ...T.label, margin: 0 }}>
+                        {stmtCat ? `${activeCat.icon} ${activeCat.label}` : "All Transactions"} · {visibleTxns.length}
+                      </p>
+                      {stmtCat && (
+                        <button onClick={() => setStmtCat(null)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#F1F5F9", border: "none", cursor: "pointer", padding: "5px 12px", borderRadius: 99, fontFamily: "inherit", fontSize: 11, fontWeight: 700, color: "#64748B" }}>
+                          <X size={11} /> Show all
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Category total banner when filtered */}
+                    {stmtCat && (
+                      <div style={{ padding: "14px 20px", borderRadius: 18, marginBottom: 12, background: activeCat.pastelBg, border: `1.5px solid ${activeCat.bar}40` }}>
+                        <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 600, color: activeCat.pastelText, textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.7 }}>Spent on {activeCat.label}</p>
+                        <p style={{ margin: 0, fontSize: 28, fontWeight: 800, letterSpacing: "-1px", color: activeCat.pastelText, fontFamily: "'DM Mono', monospace" }}>{fmt(mCatTotals[stmtCat])}</p>
+                      </div>
+                    )}
+
+                    {/* ── Transactions ── */}
+                    {visibleTxns.map((tx) => {
+                      const cat = getCat(tx.category);
+                      const tags = extractTags(tx.note);
+                      const isDeleting = deletingId === tx.id;
+                      return (
+                        <div key={tx.id} style={{ ...T.card, padding: "14px 18px", marginBottom: 9, display: "flex", alignItems: "center", gap: 13, opacity: isDeleting ? 0 : 1, transform: isDeleting ? "translateX(50px)" : "none", transition: "all 0.28s" }}>
+                          <div style={{ width: 42, height: 42, borderRadius: 15, background: cat.pastelBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, flexShrink: 0 }}>{cat.icon}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                              <span style={{ fontSize: 13, fontWeight: 700, color: "#0F172A" }}>{cat.label}</span>
+                              {tx.split && <span style={{ fontSize: 10, fontWeight: 700, background: "#EEF2FF", color: T.indigo, padding: "1px 6px", borderRadius: 5 }}>split</span>}
+                              {tx.recurringId && <span style={{ fontSize: 10, fontWeight: 700, background: "#FEFCE8", color: "#A16207", padding: "1px 6px", borderRadius: 5 }}>auto</span>}
+                            </div>
+                            <p style={{ ...T.muted, margin: "2px 0 0", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.note || "No note"} · {fmtDate(tx.date)}</p>
+                            {tags.length > 0 && (
+                              <div style={{ display: "flex", gap: 3, marginTop: 4, flexWrap: "wrap" }}>
+                                {tags.map((tag) => <span key={tag} style={{ fontSize: 10, fontWeight: 700, background: "#EEF2FF", color: "#6366F1", padding: "1px 7px", borderRadius: 99 }}>{tag}</span>)}
+                              </div>
+                            )}
+                          </div>
+                          <span style={{ ...T.mono, fontSize: 14, fontWeight: 700, color: "#EF4444", flexShrink: 0 }}>−{fmt(tx.amount)}</span>
+                          <button onClick={() => handleDelete(tx.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 5, color: "#CBD5E1", flexShrink: 0 }}><Trash2 size={14} /></button>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
             </div>
-          </div>
+          );
+        }
 
-          {/* Month grid — calendar-style list */}
-          <SectionLabel>All Months</SectionLabel>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-            {yearMonthData.map(({ name, key, txns, total, monthIdx }) => {
-              const isNow    = key === currentMonth();
-              const isOpen   = key === openMonth;
-              const hasData  = txns.length > 0;
-              const topC     = (() => { const ct = {}; txns.forEach((t) => { ct[t.category] = (ct[t.category]||0)+t.amount; }); const top = Object.entries(ct).sort((a,b)=>b[1]-a[1])[0]; return top ? getCat(top[0]) : null; })();
+        // ── Month overview grid ────────────────────────────────────────────
+        return (
+          <div style={{ padding: "0 16px" }}>
+            {/* Year selector */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <SectionLabel style={{ margin: 0 }}>Year</SectionLabel>
+              <div style={{ display: "flex", gap: 6 }}>
+                {availableYears.map((y) => (
+                  <button key={y} onClick={() => { setStmtYear(parseInt(y)); setOpenMonth(null); }} style={{
+                    padding: "6px 14px", borderRadius: 99, border: "none", cursor: "pointer", fontFamily: "inherit",
+                    fontSize: 13, fontWeight: 700,
+                    background: stmtYear === parseInt(y) ? T.indigo : "#FFFFFF",
+                    color: stmtYear === parseInt(y) ? "#FFFFFF" : "#64748B",
+                    boxShadow: stmtYear === parseInt(y) ? "0 2px 10px rgba(79,70,229,0.3)" : "0 1px 4px rgba(15,23,42,0.06)"
+                  }}>{y}</button>
+                ))}
+              </div>
+            </div>
 
-              return (
-                <div key={key}>
-                  <button onClick={() => hasData && setOpenMonth(isOpen ? null : key)} style={{
-                    width: "100%", ...T.card, padding: "16px 18px", border: "none", cursor: hasData ? "pointer" : "default",
-                    textAlign: "left", fontFamily: "inherit", transition: "all 0.2s",
-                    outline: isOpen ? `2px solid ${T.indigo}` : "none",
-                    background: isOpen ? "#FAFAFE" : "#FFFFFF"
-                  }}>
-                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+            {/* Yearly total card with sparkline */}
+            <div style={{ ...T.card, padding: "22px 24px", marginBottom: 14 }}>
+              <p style={{ ...T.label, margin: "0 0 6px" }}>{stmtYear} total</p>
+              <p style={{ ...T.h1, fontSize: 34, marginBottom: 18 }}>{fmt(yearTotal)}</p>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 72 }}>
+                {yearMonthData.map(({ name, key, total }) => {
+                  const heightPct = maxMonthAmt > 0 ? total / maxMonthAmt : 0;
+                  const isNow = key === currentMonth();
+                  return (
+                    <div key={key} onClick={() => total > 0 && setOpenMonth(key)}
+                      style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: total > 0 ? "pointer" : "default" }}>
+                      <div style={{ width: "100%", height: 56, display: "flex", alignItems: "flex-end" }}>
+                        <div style={{ width: "100%", height: `${Math.max(heightPct * 100, total > 0 ? 8 : 3)}%`, minHeight: total > 0 ? 6 : 2, borderRadius: "6px 6px 3px 3px", background: isNow ? "#818CF8" : total > 0 ? "#C7D2FE" : "#F1F5F9", transition: "all 0.3s" }} />
+                      </div>
+                      <span style={{ fontSize: 9, fontWeight: isNow ? 800 : 500, color: isNow ? "#4F46E5" : "#94A3B8", textAlign: "center" }}>{name}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Month grid */}
+            <SectionLabel>All Months</SectionLabel>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 24 }}>
+              {yearMonthData.map(({ name, key, txns, total, monthIdx }) => {
+                const isNow   = key === currentMonth();
+                const hasData = txns.length > 0;
+                const catKeys = [...new Set(txns.map((t) => t.category))];
+                return (
+                  <button key={key}
+                    onClick={() => { setActiveDetailMonth({ key, year: stmtYear, monthIdx, name }); setDetailCat(null); }}
+                    style={{
+                      width: "100%", ...T.card, padding: "18px 18px", border: "none",
+                      cursor: "pointer", textAlign: "left",
+                      fontFamily: "inherit", transition: "transform 0.15s, box-shadow 0.15s",
+                      outline: isNow ? `2px solid ${T.indigo}` : "none",
+                    }}
+                    onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.96)"; e.currentTarget.style.boxShadow = "0 2px 12px rgba(15,23,42,0.06)"; }}
+                    onMouseUp={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = ""; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = ""; }}
+                    onTouchStart={(e) => { e.currentTarget.style.transform = "scale(0.96)"; }}
+                    onTouchEnd={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+                  >
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
                       <div>
                         <span style={{ fontSize: 16, fontWeight: 800, color: isNow ? T.indigo : "#0F172A" }}>{name}</span>
                         {isNow && <span style={{ fontSize: 9, fontWeight: 700, background: T.indigoLight, color: T.indigo, padding: "2px 7px", borderRadius: 99, marginLeft: 6 }}>NOW</span>}
                       </div>
-                      {hasData && (isOpen ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />)}
+                      <ChevronRight size={14} color={hasData ? "#94A3B8" : "#CBD5E1"} />
                     </div>
+                    <p style={{ ...T.mono, fontSize: 16, fontWeight: 800, color: hasData ? "#0F172A" : "#CBD5E1", margin: "0 0 8px" }}>{fmt(total)}</p>
                     {hasData ? (
-                      <>
-                        <p style={{ ...T.mono, fontSize: 15, fontWeight: 700, color: "#0F172A", margin: "8px 0 4px" }}>{fmt(total)}</p>
-                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                          {topC && <span style={{ fontSize: 13 }}>{topC.icon}</span>}
-                          <span style={{ ...T.muted, fontSize: 11 }}>{txns.length} transaction{txns.length > 1 ? "s" : ""}</span>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <div style={{ display: "flex", gap: 3 }}>
+                          {catKeys.slice(0, 4).map((cv) => (
+                            <span key={cv} style={{ fontSize: 14 }}>{getCat(cv).icon}</span>
+                          ))}
                         </div>
-                      </>
+                        <span style={{ fontSize: 11, color: "#94A3B8", fontWeight: 500 }}>{txns.length} tx</span>
+                      </div>
                     ) : (
-                      <p style={{ ...T.muted, fontSize: 12, margin: "8px 0 0" }}>No data</p>
+                      <p style={{ fontSize: 11, color: "#CBD5E1", margin: 0, fontWeight: 500 }}>No expenses yet</p>
                     )}
                   </button>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-
-          {/* Expanded month detail */}
-          {openMonth && (() => {
-            const mData = yearMonthData.find((m) => m.key === openMonth);
-            if (!mData || mData.txns.length === 0) return null;
-            const mCatTotals = {};
-            mData.txns.forEach((t) => { mCatTotals[t.category] = (mCatTotals[t.category]||0)+t.amount; });
-            const mSorted = [...mData.txns].sort((a,b) => new Date(b.date)-new Date(a.date));
-            const mName = `${MONTH_NAMES[mData.monthIdx]} ${stmtYear}`;
-
-            return (
-              <div style={{ ...T.card, padding: "22px 24px", marginBottom: 14 }}>
-                {/* Header */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-                  <div>
-                    <p style={{ ...T.label, margin: "0 0 4px" }}>Statement</p>
-                    <p style={{ ...T.h2, margin: 0 }}>{mName}</p>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <p style={{ ...T.label, margin: "0 0 2px" }}>Total</p>
-                    <p style={{ ...T.mono, fontSize: 20, fontWeight: 800, color: "#EF4444", margin: 0 }}>{fmt(mData.total)}</p>
-                  </div>
-                </div>
-
-                {/* Category summary pills */}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
-                  {Object.entries(mCatTotals).sort((a,b)=>b[1]-a[1]).map(([catVal, amt]) => {
-                    const cat = getCat(catVal);
-                    return (
-                      <div key={catVal} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: cat.pastelBg, borderRadius: 99 }}>
-                        <span style={{ fontSize: 14 }}>{cat.icon}</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: cat.pastelText }}>{fmt(amt)}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Full transaction list */}
-                <p style={{ ...T.label, margin: "0 0 4px" }}>All transactions · {mSorted.length}</p>
-                {mSorted.map((tx) => <TxRow key={tx.id} tx={tx} />)}
-              </div>
-            );
-          })()}
-        </div>
-      )}
+        );
+      })()}
 
       {/* ══ SETTINGS ══ */}
       {tab === "settings" && (
