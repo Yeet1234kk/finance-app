@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import MonthHeader from "./MonthHeader";
+import ListEditor from "./ListEditor";
 import { PlusCircle, Wallet, Trash2, Settings, BarChart2, Home, X, Plus, AlertTriangle, Scissors, BookOpen, ChevronDown, Sparkles, ArrowLeft, ChevronLeft, ChevronRight, TrendingUp, Globe } from "lucide-react";
 import { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie } from "recharts";
 
@@ -229,6 +231,7 @@ export default function FinanceTracker() {
   const [transactions,  setTransactions]  = useState(() => lsGet("ft_txns",    []));
   const [subscriptions, setSubscriptions] = useState(() => lsGet("ft_subs",    []));
   const [budgets,       setBudgets]       = useState(() => lsGet("ft_budgets", { total: "", categories: {} }));
+
   const [tab,           setTab]           = useState("home");
   const [showForm,      setShowForm]      = useState(false);
   const [showSubForm,   setShowSubForm]   = useState(false);
@@ -237,6 +240,9 @@ export default function FinanceTracker() {
   const [error,         setError]         = useState("");
 
   const [stmtYear,      setStmtYear]      = useState(new Date().getFullYear());
+  // Centralized selected month key for all sections
+  const [selectedMonthKey, setSelectedMonthKey] = useState(currentMonth());
+  // For Statement modal
   const [openMonth,     setOpenMonth]     = useState(null);
 
   const [showYearlySummary, setShowYearlySummary] = useState(false);
@@ -276,7 +282,8 @@ export default function FinanceTracker() {
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
-  const month        = currentMonth();
+  // Use selectedMonthKey for filtering
+  const month        = selectedMonthKey;
   const monthTxns    = transactions.filter((tx) => tx.date.startsWith(month));
   const monthlyTotal = monthTxns.reduce((s, tx) => s + tx.amount, 0);
   const totalBudget  = parseFloat(budgets.total) || 0;
@@ -773,7 +780,9 @@ export default function FinanceTracker() {
       )}
 
       {/* ══ HERO HEADER ══ */}
-      <div style={{ padding: "36px 24px 28px", background: T.pageBg }}>
+      <div style={{ padding: "36px 24px 8px", background: T.pageBg }}>
+          {/* Month Header for Home/Analytics/Statement */}
+          <MonthHeader monthKey={selectedMonthKey} monthNames={monthNames} year={stmtYear} />
         {/* ── Language toggle + Year-in-Review row (Requirement 3) ── */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
           {/* Language Toggle */}
@@ -1023,7 +1032,7 @@ export default function FinanceTracker() {
                 const isNow  = key === currentMonth();
                 const isOpen = key === openMonth;
                 return (
-                  <div key={key} onClick={() => setOpenMonth(isOpen ? null : key)}
+                  <div key={key} onClick={() => { setOpenMonth(isOpen ? null : key); setSelectedMonthKey(key); }}
                     style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: total > 0 ? "pointer" : "default" }}>
                     <div style={{ width: "100%", height: 56, display: "flex", alignItems: "flex-end" }}>
                       <div style={{ width: "100%", height: `${Math.max(heightPct * 100, total > 0 ? 8 : 3)}%`, minHeight: total > 0 ? 6 : 2, borderRadius: "6px 6px 3px 3px", background: isOpen ? T.indigo : isNow ? "#818CF8" : total > 0 ? "#C7D2FE" : "#F1F5F9", transition: "all 0.3s" }} />
@@ -1044,7 +1053,7 @@ export default function FinanceTracker() {
 
               return (
                 <div key={key}>
-                  <button onClick={() => setOpenMonth(key)} className="ft-month-card" style={{ width: "100%", ...T.card, padding: "16px 18px", border: "none", cursor: "pointer", textAlign: "left", fontFamily: T.fontFamily, outline: "none", background: "#FFFFFF" }}>
+                  <button onClick={() => { setOpenMonth(key); setSelectedMonthKey(key); }} className="ft-month-card" style={{ width: "100%", ...T.card, padding: "16px 18px", border: "none", cursor: "pointer", textAlign: "left", fontFamily: T.fontFamily, outline: "none", background: "#FFFFFF" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                       <div>
                         <span style={{ fontSize: 16, fontWeight: 600, color: isNow ? T.indigo : "#0F172A" }}>{name}</span>
@@ -1073,12 +1082,17 @@ export default function FinanceTracker() {
           {openMonth && (() => {
             const mData = yearMonthData.find((m) => m.key === openMonth);
             if (!mData) return null;
-            const mCatTotals = {};
-            mData.txns.forEach((tx) => { mCatTotals[tx.category] = (mCatTotals[tx.category]||0)+tx.amount; });
-            const mSorted = [...mData.txns].sort((a,b) => new Date(b.date)-new Date(a.date));
             const mName = `${monthNames[mData.monthIdx]} ${stmtYear}`;
-            const isEmpty = mData.txns.length === 0;
-
+            // ListEditor logic
+            const handleAdd = (tx) => {
+              // Add transaction for this month
+              const date = `${openMonth}-01`;
+              const newTx = { id: Date.now() + Math.random(), ...tx, date };
+              setTransactions((prev) => [newTx, ...prev]);
+            };
+            const handleDelete = (id) => {
+              setTransactions((prev) => prev.filter((tx) => tx.id !== id));
+            };
             return (
               <>
                 {/* Semi-transparent backdrop */}
@@ -1091,7 +1105,6 @@ export default function FinanceTracker() {
                   style={{ position: "fixed", left: "50%", top: "50%", transform: "translate(-50%, -50%)", zIndex: 301, width: "calc(100% - 32px)", maxWidth: 400, maxHeight: "82vh", overflowY: "auto", borderRadius: 28, background: "#FFFFFF", boxShadow: "0 24px 64px rgba(15,23,42,0.22), 0 4px 16px rgba(15,23,42,0.1)", padding: "22px 24px", animation: "ft-scale-in 0.3s cubic-bezier(0.34,1.4,0.64,1) both" }}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {/* Modal header */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
                     <div>
                       <p style={{ ...T.label, ...fontStyle, margin: "0 0 4px" }}>{t.statement}</p>
@@ -1108,46 +1121,15 @@ export default function FinanceTracker() {
                       <X size={16} />
                     </button>
                   </div>
-
-                  {isEmpty ? (
-                    <>
-                      <p style={{ ...T.label, ...fontStyle, margin: "0 0 14px" }}>{t.spendingByCategory}</p>
-                      {CATEGORIES.map((cat) => (
-                        <div key={cat.value} style={{ ...T.card, padding: "18px 20px", marginBottom: 10, boxShadow: "0 2px 8px rgba(15,23,42,0.05)" }}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                              <div style={{ width: 40, height: 40, borderRadius: 14, background: cat.pastelBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{cat.icon}</div>
-                              <span style={{ fontSize: 15, fontWeight: 600, color: "#0F172A" }}>{cat.label}</span>
-                            </div>
-                            <span style={{ ...T.mono, fontSize: 15, fontWeight: 600, color: "#0F172A" }}>{fmt(0)}</span>
-                          </div>
-                          <div style={{ height: 7, background: "#F1F5F9", borderRadius: 99 }} />
-                        </div>
-                      ))}
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-                        <div>
-                          <p style={{ ...T.label, ...fontStyle, margin: "0 0 2px" }}>{t.total}</p>
-                          <p style={{ ...T.mono, fontSize: 20, fontWeight: 600, color: "#EF4444", margin: 0 }}>{fmt(mData.total)}</p>
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
-                        {Object.entries(mCatTotals).sort((a,b)=>b[1]-a[1]).map(([catVal, amt]) => {
-                          const cat = getCat(catVal);
-                          return (
-                            <div key={catVal} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: cat.pastelBg, borderRadius: 99 }}>
-                              <span style={{ fontSize: 14 }}>{cat.icon}</span>
-                              <span style={{ fontSize: 12, fontWeight: 600, color: cat.pastelText }}>{fmt(amt)}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <p style={{ ...T.label, ...fontStyle, margin: "0 0 4px" }}>{t.allTransactions} · {mSorted.length}</p>
-                      {mSorted.map((tx) => <TxRow key={tx.id} tx={tx} />)}
-                    </>
-                  )}
+                  <ListEditor
+                    txns={mData.txns}
+                    onAdd={handleAdd}
+                    onDelete={handleDelete}
+                    monthName={mName}
+                    fmt={fmt}
+                    categories={CATEGORIES}
+                    getCatLabel={getCatLabel}
+                  />
                 </div>
               </>
             );
@@ -1231,7 +1213,7 @@ export default function FinanceTracker() {
         ].map(({ id, label, Icon }) => {
           const active = tab === id;
           return (
-            <button key={id} onClick={() => { setTab(id); setShowForm(false); }} className="ft-tab-btn" style={{ flex: 1, padding: "11px 4px 16px", border: "none", background: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, color: active ? T.indigo : "#94A3B8", fontFamily: T.fontFamily, transition: "color 0.18s" }}>
+            <button key={id} onClick={() => { setTab(id); setShowForm(false); if (id === "home" || id === "analytics" || id === "statement") setSelectedMonthKey(currentMonth()); }} className="ft-tab-btn" style={{ flex: 1, padding: "11px 4px 16px", border: "none", background: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, color: active ? T.indigo : "#94A3B8", fontFamily: T.fontFamily, transition: "color 0.18s" }}>
               <div style={{ width: 34, height: 34, borderRadius: 12, background: active ? T.indigoLight : "transparent", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.18s" }}>
                 <Icon size={18} />
               </div>
