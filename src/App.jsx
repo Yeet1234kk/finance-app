@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { PlusCircle, Wallet, Trash2, Settings, BarChart2, Home, X, Plus, AlertTriangle, Scissors, BookOpen, ChevronDown, ChevronUp, Sparkles, ArrowLeft, ChevronLeft, ChevronRight, TrendingUp, Globe } from "lucide-react";
+import { PlusCircle, Wallet, Trash2, Settings, BarChart2, Home, X, Plus, AlertTriangle, Scissors, BookOpen, ChevronDown, Sparkles, ArrowLeft, ChevronLeft, ChevronRight, TrendingUp, Globe } from "lucide-react";
 import { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie } from "recharts";
 
 // ─── Translations ─────────────────────────────────────────────────────────────
@@ -338,7 +338,7 @@ export default function FinanceTracker() {
     const isDeleting = deletingId === tx.id;
     const tags = extractTags(tx.note);
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 12, opacity: isDeleting ? 0 : 1, transform: isDeleting ? "translateX(50px)" : "none", transition: "all 0.28s", padding: "11px 0", borderBottom: "1px solid #F1F5F9" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, opacity: isDeleting ? 0 : 1, transform: isDeleting ? "translateX(50px)" : "none", transition: "all 0.28s", padding: "11px 0", borderBottom: "1px solid #F1F5F9" }} className="ft-tx-row">
         <div style={{ width: 40, height: 40, borderRadius: 14, background: cat.pastelBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{cat.icon}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
@@ -547,9 +547,9 @@ export default function FinanceTracker() {
 
     // ── Main yearly overview ─────────────────────────────────────────────────
     return (
-      <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#F8F7F4", overflowY: "auto", fontFamily: T.fontFamily }}>
+      <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#F8F7F4", overflowY: "auto", fontFamily: T.fontFamily, animation: "ft-fade-up 0.32s cubic-bezier(0.34,1.3,0.64,1) both" }}>
         <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(248,247,244,0.92)", backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(226,232,240,0.6)", padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button onClick={() => setShowYearlySummary(false)} style={{ display: "flex", alignItems: "center", gap: 7, background: "#FFFFFF", border: "none", cursor: "pointer", padding: "9px 16px", borderRadius: 99, fontFamily: T.fontFamily, fontSize: 13, fontWeight: 500, color: "#334155", boxShadow: "0 2px 8px rgba(15,23,42,0.08)" }}>
+          <button onClick={() => setShowYearlySummary(false)} className="ft-icon-btn" style={{ display: "flex", alignItems: "center", gap: 7, background: "#FFFFFF", border: "none", cursor: "pointer", padding: "9px 16px", borderRadius: 99, fontFamily: T.fontFamily, fontSize: 13, fontWeight: 500, color: "#334155", boxShadow: "0 2px 8px rgba(15,23,42,0.08)" }}>
             <ArrowLeft size={15} /> {t.dashboard}
           </button>
           <div style={{ display: "flex", gap: 4, background: "#FFFFFF", padding: 4, borderRadius: 99, boxShadow: "0 2px 8px rgba(15,23,42,0.08)" }}>
@@ -741,11 +741,33 @@ export default function FinanceTracker() {
   return (
     <div style={{ fontFamily: T.fontFamily, maxWidth: 430, margin: "0 auto", minHeight: "100vh", background: T.pageBg, paddingBottom: 90 }}>
       <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=Kanit:wght@300;400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet" />
+      <style>{`
+        @keyframes ft-fade-in   { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes ft-fade-up   { from { opacity: 0; transform: translateY(18px) } to { opacity: 1; transform: translateY(0) } }
+        @keyframes ft-fade-down { from { opacity: 0; transform: translateY(-10px) } to { opacity: 1; transform: translateY(0) } }
+        @keyframes ft-scale-in  { from { opacity: 0; transform: translate(-50%,-50%) scale(0.88) } to { opacity: 1; transform: translate(-50%,-50%) scale(1) } }
+        @keyframes ft-toast-in  { from { opacity: 0; transform: translateX(-50%) translateY(-12px) } to { opacity: 1; transform: translateX(-50%) translateY(0) } }
+        .ft-fade-up   { animation: ft-fade-up   0.28s cubic-bezier(0.34,1.4,0.64,1) both }
+        .ft-fade-down { animation: ft-fade-down  0.22s cubic-bezier(0.34,1.4,0.64,1) both }
+        .ft-slide-up  { animation: ft-fade-up   0.32s cubic-bezier(0.34,1.4,0.64,1) both }
+        .ft-yearly-in { animation: ft-fade-up   0.35s cubic-bezier(0.34,1.3,0.64,1) both }
+        .ft-btn:active      { transform: scale(0.95) !important; transition: transform 0.1s !important }
+        .ft-card-btn:active { transform: scale(0.97) !important; transition: transform 0.1s !important }
+        .ft-tab-btn:active  { transform: scale(0.90) !important }
+        .ft-icon-btn:active { transform: scale(0.85) !important; transition: transform 0.12s !important }
+        .ft-month-card { transition: transform 0.18s, box-shadow 0.18s }
+        .ft-month-card:hover  { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(15,23,42,0.10) !important }
+        .ft-month-card:active { transform: scale(0.97) !important }
+        .ft-tx-row  { transition: background 0.15s }
+        .ft-tx-row:hover  { background: #FAFAFE }
+        .ft-sub-row { transition: background 0.15s }
+        .ft-sub-row:hover { background: #FAFAFE }
+      `}</style>
 
       {showYearlySummary && <YearlySummary />}
 
       {toast && (
-        <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", zIndex: 999, background: "#0F172A", color: "#F8FAFC", padding: "11px 22px", borderRadius: 99, fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", boxShadow: "0 8px 32px rgba(15,23,42,0.22)", fontFamily: T.fontFamily }}>
+        <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", zIndex: 999, background: "#0F172A", color: "#F8FAFC", padding: "11px 22px", borderRadius: 99, fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", boxShadow: "0 8px 32px rgba(15,23,42,0.22)", fontFamily: T.fontFamily, animation: "ft-toast-in 0.3s cubic-bezier(0.34,1.4,0.64,1) both" }}>
           {toast}
         </div>
       )}
@@ -755,7 +777,7 @@ export default function FinanceTracker() {
         {/* ── Language toggle + Year-in-Review row (Requirement 3) ── */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
           {/* Language Toggle */}
-          <button
+          <button className="ft-icon-btn"
             onClick={() => setLanguage((l) => l === "EN" ? "TH" : "EN")}
             style={{ display: "flex", alignItems: "center", gap: 6, background: "#FFFFFF", border: "1.5px solid #E2E8F0", cursor: "pointer", padding: "6px 14px", borderRadius: 99, fontFamily: T.fontFamily, fontSize: 12, fontWeight: 600, color: "#475569", boxShadow: "0 1px 4px rgba(15,23,42,0.06)", transition: "all 0.18s" }}
             onMouseEnter={(e) => e.currentTarget.style.borderColor = "#C7D2FE"}
@@ -768,7 +790,7 @@ export default function FinanceTracker() {
           </button>
 
           {/* Year-in-Review button */}
-          <button onClick={() => { setYearlyYear(new Date().getFullYear()); setShowYearlySummary(true); }} style={{ display: "flex", alignItems: "center", gap: 6, background: "#0F172A", border: "none", cursor: "pointer", padding: "7px 14px", borderRadius: 99, fontFamily: T.fontFamily, fontSize: 12, fontWeight: 500, color: "#F8FAFC", boxShadow: "0 2px 12px rgba(15,23,42,0.22)" }}>
+          <button onClick={() => { setYearlyYear(new Date().getFullYear()); setShowYearlySummary(true); }} className="ft-btn" style={{ display: "flex", alignItems: "center", gap: 6, background: "#0F172A", border: "none", cursor: "pointer", padding: "7px 14px", borderRadius: 99, fontFamily: T.fontFamily, fontSize: 12, fontWeight: 500, color: "#F8FAFC", boxShadow: "0 2px 12px rgba(15,23,42,0.22)" }}>
             <Sparkles size={12} /> {t.yearInReviewBtn(new Date().getFullYear())}
           </button>
         </div>
@@ -809,13 +831,13 @@ export default function FinanceTracker() {
       {/* ══ HOME ══ */}
       {tab === "home" && (
         <div style={{ padding: "0 16px" }}>
-          <button onClick={() => { setShowForm(!showForm); setError(""); }} style={{ width: "100%", padding: "16px", borderRadius: 22, border: "none", background: showForm ? "#E2E8F0" : T.indigo, color: showForm ? "#475569" : "#FFFFFF", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: T.fontFamily, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 14, boxShadow: showForm ? "none" : "0 6px 24px rgba(79,70,229,0.32)", transition: "all 0.22s", lineHeight: 1.5 }}>
+          <button onClick={() => { setShowForm(!showForm); setError(""); }} className="ft-btn" style={{ width: "100%", padding: "16px", borderRadius: 22, border: "none", background: showForm ? "#E2E8F0" : T.indigo, color: showForm ? "#475569" : "#FFFFFF", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: T.fontFamily, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 14, boxShadow: showForm ? "none" : "0 6px 24px rgba(79,70,229,0.32)", transition: "all 0.22s", lineHeight: 1.5 }}>
             <PlusCircle size={19} />
             {showForm ? t.cancel : t.addTransaction}
           </button>
 
           {showForm && (
-            <CardWrap style={{ marginBottom: 14 }}>
+            <CardWrap style={{ marginBottom: 14, animation: "ft-fade-up 0.28s cubic-bezier(0.34,1.4,0.64,1) both" }}>
               <p style={{ ...T.h2, ...fontStyle, margin: "0 0 20px" }}>{t.newTransaction}</p>
               <p style={{ ...T.label, ...fontStyle, margin: "0 0 8px" }}>{t.amount}</p>
               <input type="number" inputMode="decimal" placeholder="0" value={form.amount}
@@ -839,7 +861,7 @@ export default function FinanceTracker() {
               </div>
 
               {form.split && (
-                <div style={{ marginBottom: 14 }}>
+                <div style={{ marginBottom: 14, animation: "ft-fade-up 0.22s cubic-bezier(0.34,1.4,0.64,1) both" }}>
                   <p style={{ ...T.label, ...fontStyle, margin: "0 0 8px" }}>{t.reimbursed}</p>
                   <input type="number" inputMode="decimal" placeholder="0" value={form.reimbursed}
                     onChange={(e) => setForm({ ...form, reimbursed: e.target.value })}
@@ -883,7 +905,7 @@ export default function FinanceTracker() {
 
               {error && <p style={{ color: "#EF4444", fontSize: 13, marginBottom: 12, fontWeight: 400, lineHeight: 1.6 }}>{error}</p>}
 
-              <button onClick={handleAdd} style={{ width: "100%", padding: "15px", borderRadius: 18, border: "none", background: T.indigo, color: "#fff", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: T.fontFamily, boxShadow: "0 4px 18px rgba(79,70,229,0.28)" }}>
+              <button onClick={handleAdd} className="ft-btn" style={{ width: "100%", padding: "15px", borderRadius: 18, border: "none", background: T.indigo, color: "#fff", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: T.fontFamily, boxShadow: "0 4px 18px rgba(79,70,229,0.28)" }}>
                 {form.split ? t.saveNet(fmt(netAmount())) : t.save}
               </button>
             </CardWrap>
@@ -900,7 +922,7 @@ export default function FinanceTracker() {
             const isDeleting = deletingId === tx.id;
             const tags = extractTags(tx.note);
             return (
-              <div key={tx.id} style={{ ...T.card, padding: "16px 18px", marginBottom: 10, display: "flex", alignItems: "center", gap: 14, opacity: isDeleting ? 0 : 1, transform: isDeleting ? "translateX(50px)" : "none", transition: "all 0.28s" }}>
+              <div key={tx.id} className="ft-tx-row" style={{ ...T.card, padding: "16px 18px", marginBottom: 10, display: "flex", alignItems: "center", gap: 14, opacity: isDeleting ? 0 : 1, transform: isDeleting ? "translateX(50px)" : "none", transition: "all 0.28s" }}>
                 <div style={{ width: 48, height: 48, borderRadius: 18, background: cat.pastelBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>{cat.icon}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
@@ -1017,19 +1039,18 @@ export default function FinanceTracker() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
             {yearMonthData.map(({ name, key, txns, total, monthIdx }) => {
               const isNow   = key === currentMonth();
-              const isOpen  = key === openMonth;
               const hasData = txns.length > 0;
               const topC    = (() => { const ct = {}; txns.forEach((tx) => { ct[tx.category] = (ct[tx.category]||0)+tx.amount; }); const top = Object.entries(ct).sort((a,b)=>b[1]-a[1])[0]; return top ? getCat(top[0]) : null; })();
 
               return (
                 <div key={key}>
-                  <button onClick={() => hasData && setOpenMonth(isOpen ? null : key)} style={{ width: "100%", ...T.card, padding: "16px 18px", border: "none", cursor: hasData ? "pointer" : "default", textAlign: "left", fontFamily: T.fontFamily, transition: "all 0.2s", outline: isOpen ? `2px solid ${T.indigo}` : "none", background: isOpen ? "#FAFAFE" : "#FFFFFF" }}>
+                  <button onClick={() => setOpenMonth(key)} className="ft-month-card" style={{ width: "100%", ...T.card, padding: "16px 18px", border: "none", cursor: "pointer", textAlign: "left", fontFamily: T.fontFamily, outline: "none", background: "#FFFFFF" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                       <div>
                         <span style={{ fontSize: 16, fontWeight: 600, color: isNow ? T.indigo : "#0F172A" }}>{name}</span>
                         {isNow && <span style={{ fontSize: 9, fontWeight: 600, background: T.indigoLight, color: T.indigo, padding: "2px 7px", borderRadius: 99, marginLeft: 6 }}>{t.nowBadge}</span>}
                       </div>
-                      {hasData && (isOpen ? <ChevronUp size={14} color="#94A3B8" /> : <ChevronDown size={14} color="#94A3B8" />)}
+                      {hasData && <ChevronDown size={14} color="#94A3B8" />}
                     </div>
                     {hasData ? (
                       <>
@@ -1048,32 +1069,38 @@ export default function FinanceTracker() {
             })}
           </div>
 
-          {/* Expanded month detail with close button */}
+          {/* ── Month Drilldown Modal ── */}
           {openMonth && (() => {
             const mData = yearMonthData.find((m) => m.key === openMonth);
-            if (!mData || mData.txns.length === 0) return null;
+            if (!mData) return null;
             const mCatTotals = {};
             mData.txns.forEach((tx) => { mCatTotals[tx.category] = (mCatTotals[tx.category]||0)+tx.amount; });
             const mSorted = [...mData.txns].sort((a,b) => new Date(b.date)-new Date(a.date));
             const mName = `${monthNames[mData.monthIdx]} ${stmtYear}`;
+            const isEmpty = mData.txns.length === 0;
 
             return (
-              <div style={{ ...T.card, padding: "22px 24px", marginBottom: 14 }}>
-                {/* Header with close button (Requirement 4 - statement tab) */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-                  <div>
-                    <p style={{ ...T.label, ...fontStyle, margin: "0 0 4px" }}>{t.statement}</p>
-                    <p style={{ ...T.h2, ...fontStyle, margin: 0 }}>{mName}</p>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ textAlign: "right" }}>
-                      <p style={{ ...T.label, ...fontStyle, margin: "0 0 2px" }}>{t.total}</p>
-                      <p style={{ ...T.mono, fontSize: 20, fontWeight: 600, color: "#EF4444", margin: 0 }}>{fmt(mData.total)}</p>
+              <>
+                {/* Semi-transparent backdrop */}
+                <div
+                  onClick={() => setOpenMonth(null)}
+                  style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(3px)", animation: "ft-fade-in 0.22s ease both" }}
+                />
+                {/* Centered modal card */}
+                <div
+                  style={{ position: "fixed", left: "50%", top: "50%", transform: "translate(-50%, -50%)", zIndex: 301, width: "calc(100% - 32px)", maxWidth: 400, maxHeight: "82vh", overflowY: "auto", borderRadius: 28, background: "#FFFFFF", boxShadow: "0 24px 64px rgba(15,23,42,0.22), 0 4px 16px rgba(15,23,42,0.1)", padding: "22px 24px", animation: "ft-scale-in 0.3s cubic-bezier(0.34,1.4,0.64,1) both" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Modal header */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+                    <div>
+                      <p style={{ ...T.label, ...fontStyle, margin: "0 0 4px" }}>{t.statement}</p>
+                      <p style={{ ...T.h2, ...fontStyle, margin: 0 }}>{mName}</p>
                     </div>
-                    {/* ── Close button (Requirement 4) ── */}
                     <button
                       onClick={() => setOpenMonth(null)}
                       aria-label="Close"
+                      className="ft-icon-btn"
                       style={{ background: "#F1F5F9", border: "none", cursor: "pointer", padding: 8, borderRadius: "50%", color: "#64748B", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.18s" }}
                       onMouseEnter={(e) => e.currentTarget.style.background = "#E2E8F0"}
                       onMouseLeave={(e) => e.currentTarget.style.background = "#F1F5F9"}
@@ -1081,23 +1108,48 @@ export default function FinanceTracker() {
                       <X size={16} />
                     </button>
                   </div>
-                </div>
 
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
-                  {Object.entries(mCatTotals).sort((a,b)=>b[1]-a[1]).map(([catVal, amt]) => {
-                    const cat = getCat(catVal);
-                    return (
-                      <div key={catVal} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: cat.pastelBg, borderRadius: 99 }}>
-                        <span style={{ fontSize: 14 }}>{cat.icon}</span>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: cat.pastelText }}>{fmt(amt)}</span>
+                  {isEmpty ? (
+                    <>
+                      <p style={{ ...T.label, ...fontStyle, margin: "0 0 14px" }}>{t.spendingByCategory}</p>
+                      {CATEGORIES.map((cat) => (
+                        <div key={cat.value} style={{ ...T.card, padding: "18px 20px", marginBottom: 10, boxShadow: "0 2px 8px rgba(15,23,42,0.05)" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <div style={{ width: 40, height: 40, borderRadius: 14, background: cat.pastelBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{cat.icon}</div>
+                              <span style={{ fontSize: 15, fontWeight: 600, color: "#0F172A" }}>{cat.label}</span>
+                            </div>
+                            <span style={{ ...T.mono, fontSize: 15, fontWeight: 600, color: "#0F172A" }}>{fmt(0)}</span>
+                          </div>
+                          <div style={{ height: 7, background: "#F1F5F9", borderRadius: 99 }} />
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+                        <div>
+                          <p style={{ ...T.label, ...fontStyle, margin: "0 0 2px" }}>{t.total}</p>
+                          <p style={{ ...T.mono, fontSize: 20, fontWeight: 600, color: "#EF4444", margin: 0 }}>{fmt(mData.total)}</p>
+                        </div>
                       </div>
-                    );
-                  })}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
+                        {Object.entries(mCatTotals).sort((a,b)=>b[1]-a[1]).map(([catVal, amt]) => {
+                          const cat = getCat(catVal);
+                          return (
+                            <div key={catVal} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: cat.pastelBg, borderRadius: 99 }}>
+                              <span style={{ fontSize: 14 }}>{cat.icon}</span>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: cat.pastelText }}>{fmt(amt)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p style={{ ...T.label, ...fontStyle, margin: "0 0 4px" }}>{t.allTransactions} · {mSorted.length}</p>
+                      {mSorted.map((tx) => <TxRow key={tx.id} tx={tx} />)}
+                    </>
+                  )}
                 </div>
-
-                <p style={{ ...T.label, ...fontStyle, margin: "0 0 4px" }}>{t.allTransactions} · {mSorted.length}</p>
-                {mSorted.map((tx) => <TxRow key={tx.id} tx={tx} />)}
-              </div>
+              </>
             );
           })()}
         </div>
@@ -1127,12 +1179,12 @@ export default function FinanceTracker() {
           <CardWrap>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
               <p style={{ ...T.h2, ...fontStyle, margin: 0 }}>{t.subscriptions}</p>
-              <button onClick={() => setShowSubForm(!showSubForm)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 16px", borderRadius: 99, border: "none", cursor: "pointer", fontFamily: T.fontFamily, fontWeight: 600, fontSize: 13, background: showSubForm ? "#F1F5F9" : T.indigoLight, color: showSubForm ? "#64748B" : T.indigo }}>
+              <button onClick={() => setShowSubForm(!showSubForm)} className="ft-icon-btn" style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 16px", borderRadius: 99, border: "none", cursor: "pointer", fontFamily: T.fontFamily, fontWeight: 600, fontSize: 13, background: showSubForm ? "#F1F5F9" : T.indigoLight, color: showSubForm ? "#64748B" : T.indigo, transition: "all 0.18s" }}>
                 {showSubForm ? <><X size={13} /> {t.cancel}</> : <><Plus size={13} /> {t.add}</>}
               </button>
             </div>
             {showSubForm && (
-              <div style={{ padding: "18px", background: "#F8F7F4", borderRadius: 20, marginBottom: 16 }}>
+              <div style={{ padding: "18px", background: "#F8F7F4", borderRadius: 20, marginBottom: 16, animation: "ft-fade-up 0.26s cubic-bezier(0.34,1.4,0.64,1) both" }}>
                 <input placeholder="Name (e.g. Netflix)" value={subForm.name} onChange={(e) => setSubForm({ ...subForm, name: e.target.value })} style={{ ...T.input, fontFamily: T.fontFamily, marginBottom: 10 }} />
                 <input type="number" placeholder="Amount (THB)" value={subForm.amount} onChange={(e) => setSubForm({ ...subForm, amount: e.target.value })} style={{ ...T.input, fontFamily: T.mono.fontFamily, fontSize: 16, fontWeight: 500, marginBottom: 10 }} />
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
@@ -1147,14 +1199,14 @@ export default function FinanceTracker() {
                     <input type="number" min="1" max="31" placeholder="1–31" value={subForm.day} onChange={(e) => setSubForm({ ...subForm, day: e.target.value })} style={{ ...T.input, fontFamily: T.mono.fontFamily, padding: "10px 12px" }} />
                   </div>
                 </div>
-                <button onClick={handleAddSub} style={{ width: "100%", padding: "13px", borderRadius: 16, border: "none", background: T.indigo, color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: T.fontFamily, boxShadow: "0 4px 14px rgba(79,70,229,0.24)" }}>{t.saveSubscription}</button>
+                <button onClick={handleAddSub} className="ft-btn" style={{ width: "100%", padding: "13px", borderRadius: 16, border: "none", background: T.indigo, color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: T.fontFamily, boxShadow: "0 4px 14px rgba(79,70,229,0.24)" }}>{t.saveSubscription}</button>
               </div>
             )}
             {subscriptions.length === 0 && !showSubForm && <p style={{ ...T.muted, ...fontStyle, textAlign: "center", margin: "8px 0", fontWeight: 400, fontSize: 13 }}>{t.noSubsYet}</p>}
             {subscriptions.map((sub, i) => {
               const cat = getCat(sub.category);
               return (
-                <div key={sub.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 0", borderTop: i === 0 ? "none" : "1px solid #F1F5F9" }}>
+                <div key={sub.id} className="ft-sub-row" style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 0", borderTop: i === 0 ? "none" : "1px solid #F1F5F9", borderRadius: 8 }}>
                   <div style={{ width: 40, height: 40, borderRadius: 14, background: cat.pastelBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{cat.icon}</div>
                   <div style={{ flex: 1 }}>
                     <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0F172A" }}>{sub.name}</p>
@@ -1179,7 +1231,7 @@ export default function FinanceTracker() {
         ].map(({ id, label, Icon }) => {
           const active = tab === id;
           return (
-            <button key={id} onClick={() => { setTab(id); setShowForm(false); }} style={{ flex: 1, padding: "11px 4px 16px", border: "none", background: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, color: active ? T.indigo : "#94A3B8", fontFamily: T.fontFamily, transition: "color 0.18s" }}>
+            <button key={id} onClick={() => { setTab(id); setShowForm(false); }} className="ft-tab-btn" style={{ flex: 1, padding: "11px 4px 16px", border: "none", background: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, color: active ? T.indigo : "#94A3B8", fontFamily: T.fontFamily, transition: "color 0.18s" }}>
               <div style={{ width: 34, height: 34, borderRadius: 12, background: active ? T.indigoLight : "transparent", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.18s" }}>
                 <Icon size={18} />
               </div>
