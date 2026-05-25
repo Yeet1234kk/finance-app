@@ -1085,7 +1085,6 @@ export default function FinanceTracker() {
             const mName = `${monthNames[mData.monthIdx]} ${stmtYear}`;
             // ListEditor logic
             const handleAdd = (tx) => {
-              // Add transaction for this month
               const date = `${openMonth}-01`;
               const newTx = { id: Date.now() + Math.random(), ...tx, date };
               setTransactions((prev) => [newTx, ...prev]);
@@ -1093,6 +1092,8 @@ export default function FinanceTracker() {
             const handleDelete = (id) => {
               setTransactions((prev) => prev.filter((tx) => tx.id !== id));
             };
+            // Overlay state for animation
+            const [showOverlay, setShowOverlay] = useState(false);
             return (
               <>
                 {/* Semi-transparent backdrop */}
@@ -1102,8 +1103,10 @@ export default function FinanceTracker() {
                 />
                 {/* Centered modal card */}
                 <div
-                  style={{ position: "fixed", left: "50%", top: "50%", transform: "translate(-50%, -50%)", zIndex: 301, width: "calc(100% - 32px)", maxWidth: 400, maxHeight: "82vh", overflowY: "auto", borderRadius: 28, background: "#FFFFFF", boxShadow: "0 24px 64px rgba(15,23,42,0.22), 0 4px 16px rgba(15,23,42,0.1)", padding: "22px 24px", animation: "ft-scale-in 0.3s cubic-bezier(0.34,1.4,0.64,1) both" }}
+                  style={{ position: "fixed", left: "50%", top: "50%", transform: "translate(-50%, -50%)", zIndex: 301, width: "calc(100% - 32px)", maxWidth: 400, maxHeight: "82vh", overflowY: "auto", borderRadius: 28, background: "#FFFFFF", boxShadow: "0 24px 64px rgba(15,23,42,0.22), 0 4px 16px rgba(15,23,42,0.1)", padding: "22px 24px", animation: "ft-scale-in 0.3s cubic-bezier(0.34,1.4,0.64,1) both", position: "relative" }}
                   onClick={(e) => e.stopPropagation()}
+                  onMouseEnter={() => setShowOverlay(true)}
+                  onMouseLeave={() => setShowOverlay(false)}
                 >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
                     <div>
@@ -1121,15 +1124,56 @@ export default function FinanceTracker() {
                       <X size={16} />
                     </button>
                   </div>
-                  <ListEditor
-                    txns={mData.txns}
-                    onAdd={handleAdd}
-                    onDelete={handleDelete}
-                    monthName={mName}
-                    fmt={fmt}
-                    categories={CATEGORIES}
-                    getCatLabel={getCatLabel}
-                  />
+                  <div style={{ position: "relative" }}>
+                    <ListEditor
+                      txns={mData.txns}
+                      onAdd={handleAdd}
+                      onDelete={handleDelete}
+                      monthName={mName}
+                      fmt={fmt}
+                      categories={CATEGORIES}
+                      getCatLabel={getCatLabel}
+                    />
+                    {/* Overlay with + Add here button */}
+                    <div
+                      className={showOverlay ? "ft-month-overlay ft-month-overlay-active" : "ft-month-overlay"}
+                      style={{
+                        position: "absolute",
+                        left: 0, right: 0, bottom: 0, height: "40%",
+                        display: "flex", alignItems: "flex-end", justifyContent: "center",
+                        background: "rgba(255,255,255,0.7)",
+                        backdropFilter: "blur(8px)",
+                        opacity: showOverlay ? 1 : 0,
+                        pointerEvents: showOverlay ? "auto" : "none",
+                        transform: showOverlay ? "translateY(0)" : "translateY(40px)",
+                        transition: "opacity 0.28s cubic-bezier(0.34,1.4,0.64,1), transform 0.28s cubic-bezier(0.34,1.4,0.64,1)",
+                        zIndex: 10
+                      }}
+                    >
+                      <button
+                        className="add-here-btn"
+                        style={{
+                          margin: "0 0 24px 0",
+                          padding: "14px 32px",
+                          borderRadius: 99,
+                          border: "none",
+                          background: "#4F46E5",
+                          color: "#fff",
+                          fontSize: "1rem",
+                          fontWeight: 600,
+                          boxShadow: "0 6px 24px rgba(79,70,229,0.18)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          cursor: "pointer",
+                          transition: "transform 0.18s"
+                        }}
+                        onClick={() => {/* You can trigger add logic here if needed */}}
+                      >
+                        <span style={{ fontSize: "1.2em", fontWeight: "bold", display: "inline-block" }}>+</span> Add here
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </>
             );
