@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { PlusCircle, Wallet, Trash2, Settings, BarChart2, Home, X, Plus, AlertTriangle, Scissors, BookOpen, ChevronDown, ChevronUp, Sparkles, ArrowLeft, ChevronLeft, ChevronRight, TrendingUp, Globe } from "lucide-react";
+import { PlusCircle, Wallet, Trash2, Settings, BarChart2, Home, X, Plus, AlertTriangle, Scissors, BookOpen, ChevronDown, ChevronUp, Sparkles, ArrowLeft, ChevronLeft, ChevronRight, TrendingUp, Globe, Download, Pencil, RotateCcw, Bell } from "lucide-react";
 import { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie } from "recharts";
 
 // ─── Translation map ───────────────────────────────────────────────────────────
@@ -227,6 +227,30 @@ const getCategoriesForLang = (lang) => {
   ];
 };
 
+const INCOME_CATEGORIES = [
+  { value: "Salary",     label: "Salary",       labelShort: "Salary",     icon: "💼", pastelBg: "#F0FDF4", pastelText: "#15803D", bar: "#22C55E" },
+  { value: "Gift",       label: "Gift",          labelShort: "Gift",       icon: "🎁", pastelBg: "#FFF0F6", pastelText: "#BE185D", bar: "#EC4899" },
+  { value: "Investment", label: "Investment",    labelShort: "Invest",     icon: "📈", pastelBg: "#EFF6FF", pastelText: "#1D4ED8", bar: "#3B82F6" },
+  { value: "Freelance",  label: "Freelance",     labelShort: "Freelance",  icon: "💻", pastelBg: "#F5F3FF", pastelText: "#6D28D9", bar: "#8B5CF6" },
+  { value: "OtherIncome",label: "Other Income",  labelShort: "Other",      icon: "💵", pastelBg: "#F8FAFC", pastelText: "#475569", bar: "#94A3B8" },
+];
+
+const getIncomeCategoriesForLang = (lang) => {
+  if (lang === "TH") {
+    return [
+      { ...INCOME_CATEGORIES[0], label: "เงินเดือน",    labelShort: "เงินเดือน" },
+      { ...INCOME_CATEGORIES[1], label: "ของขวัญ",      labelShort: "ของขวัญ" },
+      { ...INCOME_CATEGORIES[2], label: "การลงทุน",     labelShort: "ลงทุน" },
+      { ...INCOME_CATEGORIES[3], label: "ฟรีแลนซ์",     labelShort: "ฟรีแลนซ์" },
+      { ...INCOME_CATEGORIES[4], label: "รายได้อื่นๆ",  labelShort: "อื่นๆ" },
+    ];
+  }
+  return INCOME_CATEGORIES;
+};
+
+const getIncomeCategory = (val, lang = "EN") =>
+  getIncomeCategoriesForLang(lang).find((c) => c.value === val) || null;
+
 const getCat       = (val, lang = "EN") => getCategoriesForLang(lang).find((c) => c.value === val) || getCategoriesForLang(lang)[4];
 const todayStr     = () => new Date().toISOString().slice(0, 10);
 const currentMonth = () => new Date().toISOString().slice(0, 7);
@@ -279,6 +303,25 @@ export default function FinanceTracker() {
   const [toast,         setToast]         = useState(null);
   const [error,         setError]         = useState("");
   const [language,      setLanguage]      = useState(() => lsGet("ft_lang", "EN"));
+  const [formTxType,    setFormTxType]    = useState(() => lsGet("ft_last_type", "expense"));
+  const [formPrefilledMonth, setFormPrefilledMonth] = useState(null); // "YYYY-MM" or null
+
+  // NEW: Edit transaction
+  const [editingTx,     setEditingTx]     = useState(null); // tx object being edited
+
+  // NEW: Undo delete
+  const [undoStack,     setUndoStack]     = useState([]); // [{tx, idx}]
+  const [undoToast,     setUndoToast]     = useState(null); // {tx, timeoutId}
+
+  // NEW: Swipe-to-delete state (touch tracking)
+  const [swipeState,    setSwipeState]    = useState({}); // {[txId]: offsetX}
+
+  // NEW: Search
+  const [searchQuery,   setSearchQuery]   = useState("");
+  const [showSearch,    setShowSearch]    = useState(false);
+
+  // NEW: Budget alerts (dismissed per month)
+  const [dismissedAlerts, setDismissedAlerts] = useState(() => lsGet("ft_dismissed_alerts", {}));
 
   // Statement state
   const [stmtYear,      setStmtYear]      = useState(new Date().getFullYear());
@@ -293,6 +336,7 @@ export default function FinanceTracker() {
 
   const t = TRANSLATIONS[language];
   const CATEGORIES = getCategoriesForLang(language);
+  const INCOME_CATS = getIncomeCategoriesForLang(language);
 
   const blankForm = { amount: "", reimbursed: "", split: false, category: "Food", note: "", date: todayStr() };
   const [form,    setForm]    = useState(blankForm);
@@ -303,6 +347,7 @@ export default function FinanceTracker() {
   useEffect(() => lsSet("ft_subs",    subscriptions), [subscriptions]);
   useEffect(() => lsSet("ft_budgets", budgets),       [budgets]);
   useEffect(() => lsSet("ft_lang",    language),      [language]);
+  useEffect(() => lsSet("ft_dismissed_alerts", dismissedAlerts), [dismissedAlerts]);
 
   useEffect(() => {
     if (!subscriptions.length) return;
@@ -320,12 +365,12 @@ export default function FinanceTracker() {
 
   const month        = currentMonth();
   const monthTxns    = transactions.filter((tx) => tx.date.startsWith(month));
-  const monthlyTotal = monthTxns.reduce((s, tx) => s + tx.amount, 0);
+  const monthlyTotal = monthTxns.filter((tx) => tx.type !== "income").reduce((s, tx) => s + tx.amount, 0);
   const totalBudget  = parseFloat(budgets.total) || 0;
   const budgetPct    = totalBudget > 0 ? Math.min(monthlyTotal / totalBudget, 1) : 0;
   const bc           = budgetColor(budgetPct);
   const catTotals    = {};
-  monthTxns.forEach((tx) => { catTotals[tx.category] = (catTotals[tx.category] || 0) + tx.amount; });
+  monthTxns.filter((tx) => tx.type !== "income").forEach((tx) => { catTotals[tx.category] = (catTotals[tx.category] || 0) + tx.amount; });
   const topCat    = Object.entries(catTotals).sort((a, b) => b[1] - a[1])[0];
   const tagTotals = {};
   monthTxns.forEach((tx) => { extractTags(tx.note).forEach((tag) => { tagTotals[tag] = (tagTotals[tag] || 0) + tx.amount; }); });
@@ -335,8 +380,11 @@ export default function FinanceTracker() {
   const yearMonthData = Array.from({ length: 12 }, (_, i) => {
     const key  = monthKey(stmtYear, i);
     const txns = transactions.filter((tx) => tx.date.startsWith(key));
-    const total= txns.reduce((s, tx) => s + tx.amount, 0);
-    return { name: getMonthName(i, language), key, txns, total, monthIdx: i };
+    const expenseTxns = txns.filter((tx) => tx.type !== "income");
+    const incomeTxns  = txns.filter((tx) => tx.type === "income");
+    const total       = expenseTxns.reduce((s, tx) => s + tx.amount, 0);
+    const incomeTotal = incomeTxns.reduce((s, tx) => s + tx.amount, 0);
+    return { name: getMonthName(i, language), key, txns, total, incomeTotal, monthIdx: i };
   });
   const yearTotal    = yearMonthData.reduce((s, m) => s + m.total, 0);
   const maxMonthAmt  = Math.max(...yearMonthData.map((m) => m.total), 1);
@@ -346,16 +394,86 @@ export default function FinanceTracker() {
 
   const netAmount = () => { const a = parseFloat(form.amount)||0, r = parseFloat(form.reimbursed)||0; return form.split ? Math.max(a-r,0) : a; };
 
+  const openEditForm = (tx) => {
+    setEditingTx(tx);
+    setFormTxType(tx.type || "expense");
+    setForm({
+      amount: String(tx.originalAmount || tx.amount),
+      reimbursed: String(tx.reimbursed || ""),
+      split: tx.split || false,
+      category: tx.category,
+      note: tx.note || "",
+      date: tx.date,
+    });
+    setShowForm(true);
+    setError("");
+    setFormPrefilledMonth(null);
+  };
+
   const handleAdd = () => {
     const net = netAmount();
     if (!form.amount || net <= 0) { setError(t.validAmount); return; }
-    setTransactions((p) => [{ id: Date.now(), amount: net, category: form.category, note: form.note.trim(), date: form.date, tags: extractTags(form.note), split: form.split, originalAmount: parseFloat(form.amount), reimbursed: form.split ? parseFloat(form.reimbursed)||0 : 0 }, ...p]);
-    setForm(blankForm); setShowForm(false); setError("");
+    if (editingTx) {
+      // UPDATE existing
+      setTransactions((p) => p.map((tx) => tx.id === editingTx.id
+        ? { ...tx, type: formTxType, amount: net, category: form.category, note: form.note.trim(), date: form.date, tags: extractTags(form.note), split: formTxType === "expense" ? form.split : false, originalAmount: parseFloat(form.amount), reimbursed: (formTxType === "expense" && form.split) ? parseFloat(form.reimbursed)||0 : 0 }
+        : tx
+      ));
+      showToast("✓ Transaction updated");
+      setEditingTx(null);
+    } else {
+      // ADD new
+      setTransactions((p) => [{ id: Date.now(), type: formTxType, amount: net, category: form.category, note: form.note.trim(), date: form.date, tags: extractTags(form.note), split: formTxType === "expense" ? form.split : false, originalAmount: parseFloat(form.amount), reimbursed: (formTxType === "expense" && form.split) ? parseFloat(form.reimbursed)||0 : 0 }, ...p]);
+      showToast("✓ Transaction saved");
+    }
+    setForm(blankForm); setShowForm(false); setError(""); setFormPrefilledMonth(null);
   };
 
   const handleDelete = (id) => {
+    const txIdx = transactions.findIndex((tx) => tx.id === id);
+    const tx = transactions[txIdx];
+    if (!tx) return;
     setDeletingId(id);
-    setTimeout(() => { setTransactions((p) => p.filter((tx) => tx.id !== id)); setDeletingId(null); }, 300);
+    setTimeout(() => {
+      setTransactions((p) => p.filter((t) => t.id !== id));
+      setDeletingId(null);
+      // Undo toast
+      const timeoutId = setTimeout(() => setUndoToast(null), 4500);
+      setUndoToast({ tx, txIdx, timeoutId });
+    }, 300);
+  };
+
+  const handleUndo = () => {
+    if (!undoToast) return;
+    clearTimeout(undoToast.timeoutId);
+    setTransactions((p) => {
+      const arr = [...p];
+      arr.splice(Math.min(undoToast.txIdx, arr.length), 0, undoToast.tx);
+      return arr;
+    });
+    setUndoToast(null);
+  };
+
+  // CSV Export
+  const handleExportCSV = () => {
+    const header = ["Date","Type","Category","Note","Amount","Split","Reimbursed","Tags"];
+    const rows = [...transactions].sort((a,b) => new Date(b.date)-new Date(a.date)).map((tx) => [
+      tx.date,
+      tx.type || "expense",
+      tx.category,
+      `"${(tx.note||"").replace(/"/g,'""')}"`,
+      tx.amount,
+      tx.split ? "yes" : "no",
+      tx.reimbursed || 0,
+      (tx.tags||[]).join(" "),
+    ]);
+    const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `transactions_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    showToast("✓ CSV exported");
   };
 
   const handleAddSub = () => {
@@ -365,6 +483,28 @@ export default function FinanceTracker() {
   };
 
   const sorted = [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  // NEW: Search filtering
+  const searchFiltered = (txList) => {
+    if (!searchQuery.trim()) return txList;
+    const q = searchQuery.toLowerCase();
+    return txList.filter((tx) =>
+      (tx.note||"").toLowerCase().includes(q) ||
+      tx.category.toLowerCase().includes(q) ||
+      (tx.tags||[]).some((tag) => tag.toLowerCase().includes(q)) ||
+      tx.amount.toString().includes(q)
+    );
+  };
+
+  // NEW: Per-category budget alerts (for notification badge)
+  const catAlertCount = CATEGORIES.filter((cat) => {
+    const catBudget = parseFloat(budgets.categories?.[cat.value]) || 0;
+    if (!catBudget) return false;
+    const amt = catTotals[cat.value] || 0;
+    const pct = amt / catBudget;
+    const alertKey = `${currentMonth()}_${cat.value}`;
+    return pct >= 0.75 && !dismissedAlerts[alertKey];
+  }).length + (totalBudget > 0 && budgetPct >= 0.75 && !dismissedAlerts[`${currentMonth()}_total`] ? 1 : 0);
 
   const SectionLabel = ({ children, style: s = {} }) => (
     <p style={{ ...T.label, margin: "0 0 14px", paddingLeft: 4, ...s }}>{children}</p>
@@ -732,13 +872,120 @@ export default function FinanceTracker() {
 
       {showYearlySummary && <YearlySummary />}
 
+      {/* ── Global Add Transaction bottom sheet (works from overlay too) ── */}
+      {showForm && formPrefilledMonth && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", flexDirection: "column", justifyContent: "flex-end", fontFamily: FONT_FAMILY }}>
+          <div onClick={() => { setShowForm(false); setError(""); setFormPrefilledMonth(null); }} style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(2px)" }} />
+          <div style={{ position: "relative", background: "#FFFFFF", borderRadius: "28px 28px 0 0", padding: "24px 20px 40px", maxWidth: 430, width: "100%", margin: "0 auto", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 -8px 40px rgba(15,23,42,0.18)" }}>
+            {/* drag handle */}
+            <div style={{ width: 36, height: 4, background: "#E2E8F0", borderRadius: 99, margin: "0 auto 20px" }} />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <p style={{ ...T.h2, margin: 0, fontFamily: FONT_FAMILY }}>{t.newTransaction}</p>
+              <button onClick={() => { setShowForm(false); setError(""); setFormPrefilledMonth(null); }} style={{ width: 32, height: 32, borderRadius: 99, border: "none", cursor: "pointer", background: "#F1F5F9", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748B" }}><X size={14} /></button>
+            </div>
+
+            {/* Income / Expense toggle */}
+            <div style={{ display: "flex", gap: 0, marginBottom: 20, background: "#F1F5F9", borderRadius: 14, padding: 4 }}>
+              {[{ key: "expense", label: "💸 Expense" }, { key: "income", label: "💰 Income" }].map(({ key: k, label }) => {
+                const active = formTxType === k;
+                return (
+                  <button key={k} onClick={() => {
+                    setFormTxType(k);
+                    lsSet("ft_last_type", k);
+                    setForm((f) => ({ ...f, category: k === "income" ? "Salary" : "Food", split: false, reimbursed: "" }));
+                  }} style={{ flex: 1, padding: "10px 8px", borderRadius: 11, border: "none", cursor: "pointer", fontFamily: FONT_FAMILY, fontSize: 13, fontWeight: 600, background: active ? "#FFFFFF" : "transparent", color: active ? (k === "income" ? "#15803D" : T.indigo) : "#94A3B8", boxShadow: active ? "0 1px 6px rgba(15,23,42,0.10)" : "none", transition: "all 0.18s" }}>
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{t.amountTHB}</p>
+            <input type="number" inputMode="decimal" placeholder="0" value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              style={{ ...T.input, fontSize: 30, fontWeight: 600, fontFamily: MONO_FAMILY, letterSpacing: "-1px", marginBottom: 16, padding: "14px 18px" }} />
+
+            {formTxType === "expense" && (
+              <>
+                <div onClick={() => setForm({ ...form, split: !form.split, reimbursed: "" })}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderRadius: 16, background: form.split ? "#EEF2FF" : "#F8F7F4", border: `1.5px solid ${form.split ? "#C7D2FE" : "#E2E8F0"}`, marginBottom: 14, cursor: "pointer" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 11, background: form.split ? "#EEF2FF" : "#E2E8F0", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Scissors size={15} color={form.split ? T.indigo : "#94A3B8"} />
+                    </div>
+                    <div>
+                      <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{t.splitBill}</p>
+                      <p style={{ margin: 0, fontSize: 12, color: "#94A3B8", fontFamily: FONT_FAMILY, lineHeight: 1.6 }}>{t.splitSub}</p>
+                    </div>
+                  </div>
+                  <div style={{ width: 44, height: 24, borderRadius: 99, background: form.split ? T.indigo : "#CBD5E1", position: "relative", transition: "background 0.22s", flexShrink: 0 }}>
+                    <div style={{ position: "absolute", top: 2, left: form.split ? 22 : 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.22s", boxShadow: "0 1px 4px rgba(0,0,0,0.18)" }} />
+                  </div>
+                </div>
+                {form.split && (
+                  <div style={{ marginBottom: 14 }}>
+                    <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{t.reimbursedAmt}</p>
+                    <input type="number" inputMode="decimal" placeholder="0" value={form.reimbursed}
+                      onChange={(e) => setForm({ ...form, reimbursed: e.target.value })}
+                      style={{ ...T.input, fontFamily: MONO_FAMILY, fontSize: 18, fontWeight: 600, marginBottom: 10 }} />
+                    {form.amount && (
+                      <div style={{ padding: "10px 16px", background: "#F0FDF4", borderRadius: 12, border: "1px solid #BBF7D0" }}>
+                        <span style={{ fontSize: 13, color: "#15803D", fontFamily: MONO_FAMILY, fontWeight: 600 }}>
+                          {fmt(parseFloat(form.amount)||0)} − {fmt(parseFloat(form.reimbursed)||0)} = <strong>{fmt(netAmount())}</strong> {t.net}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            <p style={{ ...T.label, margin: "0 0 10px", fontFamily: FONT_FAMILY }}>{t.category}</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 7, marginBottom: 16 }}>
+              {(formTxType === "income" ? INCOME_CATS : CATEGORIES).map((cat) => {
+                const active = form.category === cat.value;
+                return (
+                  <button key={cat.value} onClick={() => setForm({ ...form, category: cat.value })} style={{ padding: "11px 6px", borderRadius: 16, cursor: "pointer", fontFamily: FONT_FAMILY, border: `2px solid ${active ? cat.bar : "transparent"}`, background: active ? cat.pastelBg : "#F8F7F4", display: "flex", flexDirection: "column", alignItems: "center", gap: 5, transition: "all 0.15s" }}>
+                    <span style={{ fontSize: 21 }}>{cat.icon}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: active ? cat.pastelText : "#94A3B8", fontFamily: FONT_FAMILY, lineHeight: 1.5 }}>{cat.labelShort}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{t.noteTags}</p>
+            <input type="text" placeholder={t.notePlaceholder} value={form.note}
+              onChange={(e) => setForm({ ...form, note: e.target.value })}
+              style={{ ...T.input, marginBottom: extractTags(form.note).length ? 8 : 14 }} />
+            {extractTags(form.note).length > 0 && (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+                {extractTags(form.note).map((tag) => <span key={tag} style={{ background: "#EEF2FF", color: T.indigo, fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 99, fontFamily: FONT_FAMILY }}>{tag}</span>)}
+              </div>
+            )}
+
+            <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{t.date}</p>
+            <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })}
+              style={{ ...T.input, marginBottom: 18 }} />
+
+            {error && <p style={{ color: "#EF4444", fontSize: 13, marginBottom: 12, fontWeight: 500, fontFamily: FONT_FAMILY }}>{error}</p>}
+
+            <button onClick={handleAdd} style={{ width: "100%", padding: "14px", borderRadius: 16, border: "none", background: T.indigo, color: "#fff", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY, boxShadow: "0 4px 18px rgba(79,70,229,0.24)" }}>
+              {form.split ? `${t.saveTransaction} (${fmt(netAmount())} ${t.net})` : t.saveTransaction}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Monthly Detail full-screen overlay ── */}
       {activeDetailMonth && (() => {
         const { key, year, monthIdx, name: mShortName } = activeDetailMonth;
         const mTxns  = transactions.filter((tx) => tx.date.startsWith(key)).sort((a, b) => new Date(b.date) - new Date(a.date));
-        const mTotal = mTxns.reduce((s, tx) => s + tx.amount, 0);
+        const mExpenseTxns = mTxns.filter((tx) => tx.type !== "income");
+        const mIncomeTxns  = mTxns.filter((tx) => tx.type === "income");
+        const mTotal = mExpenseTxns.reduce((s, tx) => s + tx.amount, 0);
+        const mIncomeTotal = mIncomeTxns.reduce((s, tx) => s + tx.amount, 0);
         const mCatTotals = {};
-        mTxns.forEach((tx) => { mCatTotals[tx.category] = (mCatTotals[tx.category] || 0) + tx.amount; });
+        mExpenseTxns.forEach((tx) => { mCatTotals[tx.category] = (mCatTotals[tx.category] || 0) + tx.amount; });
         const mCatSorted = Object.entries(mCatTotals).sort((a, b) => b[1] - a[1]);
         const visibleTxns = detailCat ? mTxns.filter((tx) => tx.category === detailCat) : mTxns;
         const activeCatObj = detailCat ? getCat(detailCat, language) : null;
@@ -770,20 +1017,43 @@ export default function FinanceTracker() {
                   <ChevronRight size={16} />
                 </button>
               </div>
-              {/* ── Close button (top-right) ── */}
-              <button onClick={closeDetail}
-                style={{ width: 36, height: 36, borderRadius: 99, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", background: "#F1F5F9", color: "#64748B", flexShrink: 0, transition: "background 0.15s" }}
-                onMouseEnter={(e) => e.currentTarget.style.background = "#E2E8F0"}
-                onMouseLeave={(e) => e.currentTarget.style.background = "#F1F5F9"}
-              >
-                <X size={16} />
-              </button>
+              {/* ── Add + Close buttons (top-right) ── */}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                <button
+                  onClick={() => {
+                    const isThisMonth = key === currentMonth();
+                    const preDate = isThisMonth ? todayStr() : `${key}-01`;
+                    const lastType = lsGet("ft_last_type", "expense");
+                    setFormTxType(lastType);
+                    setForm({ amount: "", reimbursed: "", split: false, category: lastType === "income" ? "Salary" : "Food", note: "", date: preDate });
+                    setFormPrefilledMonth(key);
+                    setShowForm(true);
+                    setError("");
+                  }}
+                  style={{ width: 36, height: 36, borderRadius: 99, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", background: T.indigoLight, color: T.indigo, flexShrink: 0, transition: "background 0.15s" }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = "#C7D2FE"}
+                  onMouseLeave={(e) => e.currentTarget.style.background = T.indigoLight}
+                  title="Add transaction"
+                >
+                  <Plus size={16} strokeWidth={2.5} />
+                </button>
+                <button onClick={closeDetail}
+                  style={{ width: 36, height: 36, borderRadius: 99, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", background: "#F1F5F9", color: "#64748B", flexShrink: 0, transition: "background 0.15s" }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = "#E2E8F0"}
+                  onMouseLeave={(e) => e.currentTarget.style.background = "#F1F5F9"}
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
 
             <div style={{ maxWidth: 430, margin: "0 auto", padding: "0 16px 100px" }}>
               <div style={{ padding: "26px 4px 18px" }}>
                 <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 500, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT_FAMILY }}>{t.summaryLabel(mShortName, year)}</p>
-                <p style={{ margin: 0, fontSize: 44, fontWeight: 600, letterSpacing: "-2px", color: "#0F172A", lineHeight: 1.1, fontFamily: MONO_FAMILY }}>{fmt(mTotal)}</p>
+                <p style={{ margin: 0, fontSize: 44, fontWeight: 600, letterSpacing: "-2px", color: mTotal > 0 ? "#EF4444" : "#0F172A", lineHeight: 1.1, fontFamily: MONO_FAMILY }}>{mTotal > 0 ? `−${fmt(mTotal)}` : fmt(mTotal)}</p>
+                {mIncomeTotal > 0 && (
+                  <p style={{ margin: "4px 0 0", fontSize: 16, fontWeight: 600, color: "#15803D", fontFamily: MONO_FAMILY }}>+{fmt(mIncomeTotal)} income</p>
+                )}
                 <p style={{ margin: "8px 0 0", fontSize: 13, color: "#94A3B8", fontWeight: 400, fontFamily: FONT_FAMILY, lineHeight: 1.6 }}>{mTxns.length} {t.txRecorded}</p>
               </div>
 
@@ -844,7 +1114,8 @@ export default function FinanceTracker() {
                     </div>
                   )}
                   {visibleTxns.map((tx) => {
-                    const cat = getCat(tx.category, language);
+                    const isIncome = tx.type === "income";
+                    const cat = isIncome ? (getIncomeCategory(tx.category, language) || getCat(tx.category, language)) : getCat(tx.category, language);
                     const tags = extractTags(tx.note);
                     const isDeleting = deletingId === tx.id;
                     return (
@@ -853,13 +1124,15 @@ export default function FinanceTracker() {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                             <span style={{ fontSize: 13, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{cat.label}</span>
-                            {tx.split && <span style={{ fontSize: 10, fontWeight: 600, background: "#EEF2FF", color: T.indigo, padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{t.split}</span>}
+                            {isIncome && <span style={{ fontSize: 10, fontWeight: 600, background: "#F0FDF4", color: "#15803D", padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>income</span>}
+                            {!isIncome && tx.split && <span style={{ fontSize: 10, fontWeight: 600, background: "#EEF2FF", color: T.indigo, padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{t.split}</span>}
                             {tx.recurringId && <span style={{ fontSize: 10, fontWeight: 600, background: "#FEFCE8", color: "#A16207", padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{t.auto}</span>}
                           </div>
                           <p style={{ ...T.muted, margin: "2px 0 0", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT_FAMILY }}>{tx.note || t.noNote} · {fmtDate(tx.date)}</p>
                           {tags.length > 0 && <div style={{ display: "flex", gap: 3, marginTop: 4, flexWrap: "wrap" }}>{tags.map((tag) => <span key={tag} style={{ fontSize: 10, fontWeight: 600, background: "#EEF2FF", color: "#6366F1", padding: "1px 7px", borderRadius: 99, fontFamily: FONT_FAMILY }}>{tag}</span>)}</div>}
                         </div>
-                        <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: "#EF4444", flexShrink: 0 }}>−{fmt(tx.amount)}</span>
+                        <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: isIncome ? "#15803D" : "#EF4444", flexShrink: 0 }}>{isIncome ? "+" : "−"}{fmt(tx.amount)}</span>
+                        <button onClick={() => { openEditForm(tx); setActiveDetailMonth(null); setDetailCat(null); setTab("home"); setShowForm(true); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#CBD5E1", flexShrink: 0 }}><Pencil size={12} /></button>
                         <button onClick={() => handleDelete(tx.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 5, color: "#CBD5E1", flexShrink: 0 }}><Trash2 size={14} /></button>
                       </div>
                     );
@@ -875,6 +1148,35 @@ export default function FinanceTracker() {
       {toast && (
         <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", zIndex: 999, background: "#0F172A", color: "#F8FAFC", padding: "10px 20px", borderRadius: 99, fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", boxShadow: "0 8px 32px rgba(15,23,42,0.22)", fontFamily: FONT_FAMILY }}>
           {toast}
+        </div>
+      )}
+
+      {/* NEW: Undo delete toast */}
+      {undoToast && (
+        <div style={{ position: "fixed", bottom: 100, left: "50%", transform: "translateX(-50%)", zIndex: 999, background: "#1E293B", color: "#F8FAFC", padding: "12px 18px", borderRadius: 16, fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", boxShadow: "0 8px 32px rgba(15,23,42,0.28)", fontFamily: FONT_FAMILY, display: "flex", alignItems: "center", gap: 12 }}>
+          <span>Transaction deleted</span>
+          <button onClick={handleUndo} style={{ display: "flex", alignItems: "center", gap: 5, background: T.indigo, border: "none", cursor: "pointer", color: "#FFFFFF", padding: "5px 12px", borderRadius: 99, fontSize: 12, fontWeight: 700, fontFamily: FONT_FAMILY }}>
+            <RotateCcw size={11} /> Undo
+          </button>
+        </div>
+      )}
+
+      {/* NEW: Budget alert banner (dismissible) */}
+      {tab === "home" && catAlertCount > 0 && (
+        <div style={{ margin: "0 16px 12px", padding: "12px 16px", background: "#FFFBEB", borderRadius: 16, border: "1.5px solid #FDE68A", display: "flex", alignItems: "center", gap: 10 }}>
+          <AlertTriangle size={15} color="#D97706" />
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: "#92400E", fontFamily: FONT_FAMILY }}>
+            {catAlertCount} budget {catAlertCount === 1 ? "category is" : "categories are"} near or over limit
+          </span>
+          <button onClick={() => {
+            const newDismissed = { ...dismissedAlerts };
+            if (totalBudget > 0 && budgetPct >= 0.75) newDismissed[`${currentMonth()}_total`] = true;
+            CATEGORIES.forEach((cat) => {
+              const catBudget = parseFloat(budgets.categories?.[cat.value]) || 0;
+              if (catBudget && (catTotals[cat.value]||0)/catBudget >= 0.75) newDismissed[`${currentMonth()}_${cat.value}`] = true;
+            });
+            setDismissedAlerts(newDismissed);
+          }} style={{ background: "none", border: "none", cursor: "pointer", color: "#D97706", padding: 4 }}><X size={13} /></button>
         </div>
       )}
 
@@ -935,7 +1237,10 @@ export default function FinanceTracker() {
       {/* ══ HOME ══ */}
       {tab === "home" && (
         <div style={{ padding: "0 16px" }}>
-          <button onClick={() => { setShowForm(!showForm); setError(""); }} style={{
+          <button onClick={() => { 
+            if (showForm) { setShowForm(false); setError(""); setFormPrefilledMonth(null); setEditingTx(null); setForm(blankForm); }
+            else { setShowForm(true); setError(""); setFormPrefilledMonth(null); setEditingTx(null); }
+          }} style={{
             width: "100%", padding: "15px", borderRadius: 20, border: "none",
             background: showForm ? "#E2E8F0" : T.indigo, color: showForm ? "#475569" : "#FFFFFF",
             fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY,
@@ -946,49 +1251,70 @@ export default function FinanceTracker() {
             {showForm ? t.cancel : t.addTransaction}
           </button>
 
-          {showForm && (
+          {showForm && !formPrefilledMonth && (
             <CardWrap style={{ marginBottom: 14 }}>
-              <p style={{ ...T.h2, margin: "0 0 18px", fontFamily: FONT_FAMILY }}>{t.newTransaction}</p>
+              <p style={{ ...T.h2, margin: "0 0 16px", fontFamily: FONT_FAMILY }}>{editingTx ? "✏️ Edit Transaction" : t.newTransaction}</p>
+
+              {/* Income / Expense toggle */}
+              <div style={{ display: "flex", gap: 0, marginBottom: 20, background: "#F1F5F9", borderRadius: 14, padding: 4 }}>
+                {[{ key: "expense", label: "💸 Expense" }, { key: "income", label: "💰 Income" }].map(({ key, label }) => {
+                  const active = formTxType === key;
+                  return (
+                    <button key={key} onClick={() => {
+                      setFormTxType(key);
+                      lsSet("ft_last_type", key);
+                      setForm((f) => ({ ...f, category: key === "income" ? "Salary" : "Food", split: false, reimbursed: "" }));
+                    }} style={{ flex: 1, padding: "10px 8px", borderRadius: 11, border: "none", cursor: "pointer", fontFamily: FONT_FAMILY, fontSize: 13, fontWeight: 600, background: active ? "#FFFFFF" : "transparent", color: active ? (key === "income" ? "#15803D" : T.indigo) : "#94A3B8", boxShadow: active ? "0 1px 6px rgba(15,23,42,0.10)" : "none", transition: "all 0.18s" }}>
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
               <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{t.amountTHB}</p>
               <input type="number" inputMode="decimal" placeholder="0" value={form.amount}
                 onChange={(e) => setForm({ ...form, amount: e.target.value })}
                 style={{ ...T.input, fontSize: 30, fontWeight: 600, fontFamily: MONO_FAMILY, letterSpacing: "-1px", marginBottom: 16, padding: "14px 18px" }} />
 
-              <div onClick={() => setForm({ ...form, split: !form.split, reimbursed: "" })}
-                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderRadius: 16, background: form.split ? "#EEF2FF" : "#F8F7F4", border: `1.5px solid ${form.split ? "#C7D2FE" : "#E2E8F0"}`, marginBottom: 14, cursor: "pointer" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ width: 34, height: 34, borderRadius: 11, background: form.split ? "#EEF2FF" : "#E2E8F0", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <Scissors size={15} color={form.split ? T.indigo : "#94A3B8"} />
+              {/* Split bill — expense only */}
+              {formTxType === "expense" && (
+                <>
+                  <div onClick={() => setForm({ ...form, split: !form.split, reimbursed: "" })}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderRadius: 16, background: form.split ? "#EEF2FF" : "#F8F7F4", border: `1.5px solid ${form.split ? "#C7D2FE" : "#E2E8F0"}`, marginBottom: 14, cursor: "pointer" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: 11, background: form.split ? "#EEF2FF" : "#E2E8F0", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Scissors size={15} color={form.split ? T.indigo : "#94A3B8"} />
+                      </div>
+                      <div>
+                        <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{t.splitBill}</p>
+                        <p style={{ margin: 0, fontSize: 12, color: "#94A3B8", fontFamily: FONT_FAMILY, lineHeight: 1.6 }}>{t.splitSub}</p>
+                      </div>
+                    </div>
+                    <div style={{ width: 44, height: 24, borderRadius: 99, background: form.split ? T.indigo : "#CBD5E1", position: "relative", transition: "background 0.22s", flexShrink: 0 }}>
+                      <div style={{ position: "absolute", top: 2, left: form.split ? 22 : 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.22s", boxShadow: "0 1px 4px rgba(0,0,0,0.18)" }} />
+                    </div>
                   </div>
-                  <div>
-                    <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{t.splitBill}</p>
-                    <p style={{ margin: 0, fontSize: 12, color: "#94A3B8", fontFamily: FONT_FAMILY, lineHeight: 1.6 }}>{t.splitSub}</p>
-                  </div>
-                </div>
-                <div style={{ width: 44, height: 24, borderRadius: 99, background: form.split ? T.indigo : "#CBD5E1", position: "relative", transition: "background 0.22s", flexShrink: 0 }}>
-                  <div style={{ position: "absolute", top: 2, left: form.split ? 22 : 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.22s", boxShadow: "0 1px 4px rgba(0,0,0,0.18)" }} />
-                </div>
-              </div>
-
-              {form.split && (
-                <div style={{ marginBottom: 14 }}>
-                  <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{t.reimbursedAmt}</p>
-                  <input type="number" inputMode="decimal" placeholder="0" value={form.reimbursed}
-                    onChange={(e) => setForm({ ...form, reimbursed: e.target.value })}
-                    style={{ ...T.input, fontFamily: MONO_FAMILY, fontSize: 18, fontWeight: 600, marginBottom: 10 }} />
-                  {form.amount && (
-                    <div style={{ padding: "10px 16px", background: "#F0FDF4", borderRadius: 12, border: "1px solid #BBF7D0" }}>
-                      <span style={{ fontSize: 13, color: "#15803D", fontFamily: MONO_FAMILY, fontWeight: 600 }}>
-                        {fmt(parseFloat(form.amount)||0)} − {fmt(parseFloat(form.reimbursed)||0)} = <strong>{fmt(netAmount())}</strong> {t.net}
-                      </span>
+                  {form.split && (
+                    <div style={{ marginBottom: 14 }}>
+                      <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{t.reimbursedAmt}</p>
+                      <input type="number" inputMode="decimal" placeholder="0" value={form.reimbursed}
+                        onChange={(e) => setForm({ ...form, reimbursed: e.target.value })}
+                        style={{ ...T.input, fontFamily: MONO_FAMILY, fontSize: 18, fontWeight: 600, marginBottom: 10 }} />
+                      {form.amount && (
+                        <div style={{ padding: "10px 16px", background: "#F0FDF4", borderRadius: 12, border: "1px solid #BBF7D0" }}>
+                          <span style={{ fontSize: 13, color: "#15803D", fontFamily: MONO_FAMILY, fontWeight: 600 }}>
+                            {fmt(parseFloat(form.amount)||0)} − {fmt(parseFloat(form.reimbursed)||0)} = <strong>{fmt(netAmount())}</strong> {t.net}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
+                </>
               )}
 
               <p style={{ ...T.label, margin: "0 0 10px", fontFamily: FONT_FAMILY }}>{t.category}</p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 7, marginBottom: 16 }}>
-                {CATEGORIES.map((cat) => {
+                {(formTxType === "income" ? INCOME_CATS : CATEGORIES).map((cat) => {
                   const active = form.category === cat.value;
                   return (
                     <button key={cat.value} onClick={() => setForm({ ...form, category: cat.value })} style={{ padding: "11px 6px", borderRadius: 16, cursor: "pointer", fontFamily: FONT_FAMILY, border: `2px solid ${active ? cat.bar : "transparent"}`, background: active ? cat.pastelBg : "#F8F7F4", display: "flex", flexDirection: "column", alignItems: "center", gap: 5, transition: "all 0.15s" }}>
@@ -1016,19 +1342,36 @@ export default function FinanceTracker() {
               {error && <p style={{ color: "#EF4444", fontSize: 13, marginBottom: 12, fontWeight: 500, fontFamily: FONT_FAMILY }}>{error}</p>}
 
               <button onClick={handleAdd} style={{ width: "100%", padding: "14px", borderRadius: 16, border: "none", background: T.indigo, color: "#fff", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY, boxShadow: "0 4px 18px rgba(79,70,229,0.24)" }}>
-                {form.split ? `${t.saveTransaction} (${fmt(netAmount())} ${t.net})` : t.saveTransaction}
+                {editingTx ? "💾 Update Transaction" : (form.split ? `${t.saveTransaction} (${fmt(netAmount())} ${t.net})` : t.saveTransaction)}
               </button>
             </CardWrap>
           )}
 
-          <SectionLabel>{sorted.length === 0 ? t.noTransYet : t.transactionCount(sorted.length)}</SectionLabel>
-          {sorted.length === 0 ? (
+          {/* Search bar */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <SectionLabel style={{ margin: 0, flex: 1 }}>{monthTxns.length === 0 ? t.noTransYet : t.transactionCount(monthTxns.length)}</SectionLabel>
+            <button onClick={() => { setShowSearch((s) => !s); setSearchQuery(""); }} style={{ background: showSearch ? T.indigoLight : "none", border: "none", cursor: "pointer", padding: "5px 10px", borderRadius: 99, color: showSearch ? T.indigo : "#94A3B8", fontSize: 12, fontWeight: 600, fontFamily: FONT_FAMILY, display: "flex", alignItems: "center", gap: 4 }}>
+              🔍 {showSearch ? "Clear" : "Search"}
+            </button>
+          </div>
+          {showSearch && (
+            <input autoFocus type="text" placeholder="Search by note, category, tag, amount…" value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ ...T.input, marginBottom: 12, fontSize: 13 }} />
+          )}
+          {monthTxns.length === 0 ? (
             <div style={{ textAlign: "center", padding: "48px 20px" }}>
               <div style={{ width: 60, height: 60, borderRadius: 22, background: "#E2E8F0", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}><Wallet size={26} color="#94A3B8" /></div>
+              <p style={{ ...T.muted, margin: "0 0 6px", fontWeight: 600, fontSize: 15, color: "#64748B", fontFamily: FONT_FAMILY }}>{t.noTransYet}</p>
               <p style={{ ...T.muted, margin: 0, fontWeight: 400, fontFamily: FONT_FAMILY }}>{t.tapToAdd}</p>
             </div>
-          ) : sorted.map((tx) => {
-            const cat = getCat(tx.category, language);
+          ) : searchFiltered([...monthTxns].sort((a, b) => new Date(b.date) - new Date(a.date))).length === 0 ? (
+            <div style={{ textAlign: "center", padding: "32px 20px" }}>
+              <p style={{ ...T.muted, margin: 0, fontFamily: FONT_FAMILY }}>No results for "{searchQuery}"</p>
+            </div>
+          ) : searchFiltered([...monthTxns].sort((a, b) => new Date(b.date) - new Date(a.date))).map((tx) => {
+            const isIncome = tx.type === "income";
+            const cat = isIncome ? (getIncomeCategory(tx.category, language) || getCat(tx.category, language)) : getCat(tx.category, language);
             const isDeleting = deletingId === tx.id;
             const tags = extractTags(tx.note);
             return (
@@ -1037,7 +1380,8 @@ export default function FinanceTracker() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                     <span style={{ fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{cat.label}</span>
-                    {tx.split && <span style={{ fontSize: 10, fontWeight: 600, background: "#EEF2FF", color: T.indigo, padding: "2px 7px", borderRadius: 6, fontFamily: FONT_FAMILY }}>{t.split}</span>}
+                    {isIncome && <span style={{ fontSize: 10, fontWeight: 600, background: "#F0FDF4", color: "#15803D", padding: "2px 7px", borderRadius: 6, fontFamily: FONT_FAMILY }}>income</span>}
+                    {!isIncome && tx.split && <span style={{ fontSize: 10, fontWeight: 600, background: "#EEF2FF", color: T.indigo, padding: "2px 7px", borderRadius: 6, fontFamily: FONT_FAMILY }}>{t.split}</span>}
                     {tx.recurringId && <span style={{ fontSize: 10, fontWeight: 600, background: "#FEFCE8", color: "#A16207", padding: "2px 7px", borderRadius: 6, fontFamily: FONT_FAMILY }}>{t.auto}</span>}
                   </div>
                   <p style={{ ...T.muted, margin: "3px 0 0", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT_FAMILY }}>{tx.note || t.noNote} · {fmtDate(tx.date)}</p>
@@ -1047,8 +1391,9 @@ export default function FinanceTracker() {
                     </div>
                   )}
                 </div>
-                <span style={{ fontFamily: MONO_FAMILY, fontSize: 15, fontWeight: 600, color: "#EF4444", flexShrink: 0 }}>−{fmt(tx.amount)}</span>
-                <button onClick={() => handleDelete(tx.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, color: "#CBD5E1", flexShrink: 0 }}><Trash2 size={14} /></button>
+                <span style={{ fontFamily: MONO_FAMILY, fontSize: 15, fontWeight: 600, color: isIncome ? "#15803D" : "#EF4444", flexShrink: 0 }}>{isIncome ? "+" : "−"}{fmt(tx.amount)}</span>
+                <button onClick={() => { openEditForm(tx); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 5, color: "#CBD5E1", flexShrink: 0 }}><Pencil size={13} /></button>
+                <button onClick={() => handleDelete(tx.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 5, color: "#CBD5E1", flexShrink: 0 }}><Trash2 size={13} /></button>
               </div>
             );
           })}
@@ -1103,9 +1448,45 @@ export default function FinanceTracker() {
               ))}
             </>
           )}
+
+          {/* NEW: Income vs Expense year-to-date chart */}
+          {(() => {
+            const yearStr = String(new Date().getFullYear());
+            const incomeVsExpData = Array.from({ length: 12 }, (_, i) => {
+              const key = monthKey(parseInt(yearStr), i);
+              const mTxns = transactions.filter((tx) => tx.date.startsWith(key));
+              const expense = mTxns.filter((tx) => tx.type !== "income").reduce((s,tx) => s+tx.amount, 0);
+              const income  = mTxns.filter((tx) => tx.type === "income").reduce((s,tx) => s+tx.amount, 0);
+              return { name: getMonthName(i, language), expense, income, monthIdx: i };
+            });
+            const hasIncome = incomeVsExpData.some((m) => m.income > 0);
+            if (!hasIncome) return null;
+            return (
+              <>
+                <SectionLabel style={{ marginTop: 8 }}>Income vs Expenses {yearStr}</SectionLabel>
+                <div style={{ ...T.card, padding: "20px 22px", marginBottom: 12 }}>
+                  <ResponsiveContainer width="100%" height={150}>
+                    <BarChart data={incomeVsExpData} barSize={10} barGap={2} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+                      <XAxis dataKey="name" tick={{ fontSize: 9, fontWeight: 500, fill: "#94A3B8", fontFamily: FONT_FAMILY }} axisLine={false} tickLine={false} />
+                      <YAxis hide />
+                      <Tooltip formatter={(val, name) => [fmt(val), name === "expense" ? "Expenses" : "Income"]} contentStyle={{ fontFamily: FONT_FAMILY, fontSize: 12, borderRadius: 10, border: "none", boxShadow: "0 4px 16px rgba(15,23,42,0.12)" }} />
+                      <Bar dataKey="expense" fill="#FCA5A5" radius={[4,4,2,2]} />
+                      <Bar dataKey="income"  fill="#86EFAC" radius={[4,4,2,2]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 3, background: "#FCA5A5" }} /><span style={{ fontSize: 11, color: "#64748B", fontFamily: FONT_FAMILY }}>Expenses</span></div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 3, background: "#86EFAC" }} /><span style={{ fontSize: 11, color: "#64748B", fontFamily: FONT_FAMILY }}>Income</span></div>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+
           {monthTxns.length === 0 && (
-            <div style={{ textAlign: "center", padding: "48px 20px" }}>
-              <div style={{ width: 60, height: 60, borderRadius: 22, background: "#E2E8F0", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}><BarChart2 size={26} color="#94A3B8" /></div>
+            <div style={{ textAlign: "center", padding: "56px 20px" }}>
+              <div style={{ width: 64, height: 64, borderRadius: 22, background: "linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}><BarChart2 size={28} color={T.indigo} /></div>
+              <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "#334155", fontFamily: FONT_FAMILY }}>No data yet</p>
               <p style={{ ...T.muted, margin: 0, fontWeight: 400, fontFamily: FONT_FAMILY }}>{t.addToSeeAnalytics}</p>
             </div>
           )}
@@ -1120,8 +1501,9 @@ export default function FinanceTracker() {
           const mName = mData ? `${getMonthName(mIdx, language)} ${stmtYear}` : "";
           const mTxns = mData ? [...mData.txns].sort((a, b) => new Date(b.date) - new Date(a.date)) : [];
           const mTotal = mData ? mData.total : 0;
+          const mIncomeTotal = mData ? mData.incomeTotal : 0;
           const mCatTotals = {};
-          mTxns.forEach((tx) => { mCatTotals[tx.category] = (mCatTotals[tx.category] || 0) + tx.amount; });
+          mTxns.filter((tx) => tx.type !== "income").forEach((tx) => { mCatTotals[tx.category] = (mCatTotals[tx.category] || 0) + tx.amount; });
           const mCatSorted = Object.entries(mCatTotals).sort((a, b) => b[1] - a[1]);
           const visibleTxns = stmtCat ? mTxns.filter((tx) => tx.category === stmtCat) : mTxns;
           const activeCat = stmtCat ? getCat(stmtCat, language) : null;
@@ -1146,7 +1528,10 @@ export default function FinanceTracker() {
               <div style={{ maxWidth: 430, margin: "0 auto", padding: "0 16px 100px" }}>
                 <div style={{ padding: "26px 4px 16px" }}>
                   <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 500, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT_FAMILY }}>{t.totalSpentLabel}</p>
-                  <p style={{ margin: 0, fontSize: 40, fontWeight: 600, letterSpacing: "-1.5px", color: "#0F172A", lineHeight: 1.1, fontFamily: MONO_FAMILY }}>{fmt(mTotal)}</p>
+                  <p style={{ margin: 0, fontSize: 40, fontWeight: 600, letterSpacing: "-1.5px", color: mTotal > 0 ? "#EF4444" : "#0F172A", lineHeight: 1.1, fontFamily: MONO_FAMILY }}>{mTotal > 0 ? `−${fmt(mTotal)}` : fmt(mTotal)}</p>
+                  {mIncomeTotal > 0 && (
+                    <p style={{ margin: "4px 0 0", fontSize: 15, fontWeight: 600, color: "#15803D", fontFamily: MONO_FAMILY }}>+{fmt(mIncomeTotal)} income</p>
+                  )}
                   <p style={{ margin: "8px 0 0", fontSize: 13, color: "#94A3B8", fontWeight: 400, fontFamily: FONT_FAMILY, lineHeight: 1.6 }}>{mTxns.length} {t.txIn(mName)}</p>
                 </div>
                 {mTxns.length === 0 ? (
@@ -1200,7 +1585,8 @@ export default function FinanceTracker() {
                       </div>
                     )}
                     {visibleTxns.map((tx) => {
-                      const cat = getCat(tx.category, language);
+                      const isIncome = tx.type === "income";
+                      const cat = isIncome ? (getIncomeCategory(tx.category, language) || getCat(tx.category, language)) : getCat(tx.category, language);
                       const tags = extractTags(tx.note);
                       const isDeleting = deletingId === tx.id;
                       return (
@@ -1209,13 +1595,15 @@ export default function FinanceTracker() {
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                               <span style={{ fontSize: 13, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{cat.label}</span>
-                              {tx.split && <span style={{ fontSize: 10, fontWeight: 600, background: "#EEF2FF", color: T.indigo, padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{t.split}</span>}
+                              {isIncome && <span style={{ fontSize: 10, fontWeight: 600, background: "#F0FDF4", color: "#15803D", padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>income</span>}
+                              {!isIncome && tx.split && <span style={{ fontSize: 10, fontWeight: 600, background: "#EEF2FF", color: T.indigo, padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{t.split}</span>}
                               {tx.recurringId && <span style={{ fontSize: 10, fontWeight: 600, background: "#FEFCE8", color: "#A16207", padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{t.auto}</span>}
                             </div>
                             <p style={{ ...T.muted, margin: "2px 0 0", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT_FAMILY }}>{tx.note || t.noNote} · {fmtDate(tx.date)}</p>
                             {tags.length > 0 && <div style={{ display: "flex", gap: 3, marginTop: 4, flexWrap: "wrap" }}>{tags.map((tag) => <span key={tag} style={{ fontSize: 10, fontWeight: 600, background: "#EEF2FF", color: "#6366F1", padding: "1px 7px", borderRadius: 99, fontFamily: FONT_FAMILY }}>{tag}</span>)}</div>}
                           </div>
-                          <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: "#EF4444", flexShrink: 0 }}>−{fmt(tx.amount)}</span>
+                          <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: isIncome ? "#15803D" : "#EF4444", flexShrink: 0 }}>{isIncome ? "+" : "−"}{fmt(tx.amount)}</span>
+                          <button onClick={() => { openEditForm(tx); setOpenMonth(null); setTab("home"); setShowForm(true); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#CBD5E1", flexShrink: 0 }}><Pencil size={12} /></button>
                           <button onClick={() => handleDelete(tx.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 5, color: "#CBD5E1", flexShrink: 0 }}><Trash2 size={14} /></button>
                         </div>
                       );
@@ -1258,10 +1646,11 @@ export default function FinanceTracker() {
 
             <SectionLabel>{t.allMonths}</SectionLabel>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 24 }}>
-              {yearMonthData.map(({ name, key, txns, total, monthIdx }) => {
+              {yearMonthData.map(({ name, key, txns, total, incomeTotal, monthIdx }) => {
                 const isNow   = key === currentMonth();
                 const hasData = txns.length > 0;
-                const catKeys = [...new Set(txns.map((tx) => tx.category))];
+                const catKeys = [...new Set(txns.filter((tx) => tx.type !== "income").map((tx) => tx.category))];
+                const incomeCatKeys = [...new Set(txns.filter((tx) => tx.type === "income").map((tx) => tx.category))];
                 return (
                   <button key={key}
                     onClick={() => { setActiveDetailMonth({ key, year: stmtYear, monthIdx, name }); setDetailCat(null); }}
@@ -1279,11 +1668,17 @@ export default function FinanceTracker() {
                       </div>
                       <ChevronRight size={13} color={hasData ? "#94A3B8" : "#CBD5E1"} />
                     </div>
-                    <p style={{ fontFamily: MONO_FAMILY, fontSize: 15, fontWeight: 600, color: hasData ? "#0F172A" : "#CBD5E1", margin: "0 0 7px" }}>{fmt(total)}</p>
+                    <p style={{ fontFamily: MONO_FAMILY, fontSize: 15, fontWeight: 600, color: total > 0 ? "#EF4444" : (hasData ? "#0F172A" : "#CBD5E1"), margin: "0 0 3px" }}>
+                      {total > 0 ? `−${fmt(total)}` : (hasData ? fmt(total) : fmt(0))}
+                    </p>
+                    {incomeTotal > 0 && (
+                      <p style={{ fontFamily: MONO_FAMILY, fontSize: 12, fontWeight: 600, color: "#15803D", margin: "0 0 6px" }}>+{fmt(incomeTotal)}</p>
+                    )}
                     {hasData ? (
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: incomeTotal > 0 ? 0 : 4 }}>
                         <div style={{ display: "flex", gap: 3 }}>
-                          {catKeys.slice(0, 4).map((cv) => <span key={cv} style={{ fontSize: 13 }}>{getCat(cv, language).icon}</span>)}
+                          {catKeys.slice(0, 3).map((cv) => <span key={cv} style={{ fontSize: 13 }}>{getCat(cv, language).icon}</span>)}
+                          {incomeCatKeys.slice(0, 1).map((cv) => { const ic = getIncomeCategory(cv, language); return ic ? <span key={cv} style={{ fontSize: 13 }}>{ic.icon}</span> : null; })}
                         </div>
                         <span style={{ fontSize: 10, color: "#94A3B8", fontWeight: 400, fontFamily: FONT_FAMILY }}>{txns.length} tx</span>
                       </div>
@@ -1317,6 +1712,15 @@ export default function FinanceTracker() {
                   style={{ ...T.input, flex: 1, fontFamily: MONO_FAMILY, fontSize: 14, padding: "9px 13px" }} />
               </div>
             ))}
+          </CardWrap>
+
+          {/* NEW: Export Data card */}
+          <CardWrap>
+            <p style={{ ...T.h2, margin: "0 0 4px", fontFamily: FONT_FAMILY }}>📤 Export Data</p>
+            <p style={{ ...T.muted, margin: "0 0 14px", fontSize: 12, fontFamily: FONT_FAMILY }}>Download all {transactions.length} transactions as a CSV file</p>
+            <button onClick={handleExportCSV} style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 18px", borderRadius: 14, border: "none", background: "#0F172A", color: "#F8FAFC", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY }}>
+              <Download size={15} /> Export CSV
+            </button>
           </CardWrap>
           <CardWrap>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
@@ -1372,10 +1776,12 @@ export default function FinanceTracker() {
           { id: "settings",  label: t.settings,  Icon: Settings },
         ].map(({ id, label, Icon }) => {
           const active = tab === id;
+          const showBadge = id === "settings" && catAlertCount > 0;
           return (
             <button key={id} onClick={() => { setTab(id); setShowForm(false); }} style={{ flex: 1, padding: "10px 4px 15px", border: "none", background: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, color: active ? T.indigo : "#94A3B8", fontFamily: FONT_FAMILY, transition: "color 0.18s" }}>
-              <div style={{ width: 32, height: 32, borderRadius: 11, background: active ? T.indigoLight : "transparent", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.18s" }}>
+              <div style={{ width: 32, height: 32, borderRadius: 11, background: active ? T.indigoLight : "transparent", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.18s", position: "relative" }}>
                 <Icon size={17} />
+                {showBadge && <div style={{ position: "absolute", top: 4, right: 4, width: 7, height: 7, borderRadius: "50%", background: "#EF4444", border: "1.5px solid #F8F7F4" }} />}
               </div>
               <span style={{ fontSize: 10, fontWeight: active ? 600 : 400, letterSpacing: "0.01em", fontFamily: FONT_FAMILY }}>{label}</span>
             </button>
