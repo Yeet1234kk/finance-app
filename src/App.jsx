@@ -925,7 +925,7 @@ export default function FinanceTracker() {
                 {form.split && (
                   <div style={{ marginBottom: 14 }}>
                     <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{t.reimbursedAmt}</p>
-                    <input type="number" inputMode="decimal" placeholder="0" value={form.reimbursed}
+                    <input type="text" inputMode="decimal" placeholder="0" value={form.reimbursed}
                       onChange={(e) => setForm({ ...form, reimbursed: e.target.value })}
                       style={{ ...T.input, fontFamily: MONO_FAMILY, fontSize: 18, fontWeight: 600, marginBottom: 10 }} />
                     {form.amount && (
