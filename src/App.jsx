@@ -292,6 +292,351 @@ const T = {
 const thaiBody = { fontFamily: FONT_FAMILY, lineHeight: 1.7, letterSpacing: "0.01em" };
 const thaiHeader = { fontFamily: FONT_FAMILY, lineHeight: 1.5, letterSpacing: "0.02em", fontWeight: 600 };
 
+// ─── YearlySummary (top-level, so hooks are never called conditionally) ────────
+function YearlySummary({ transactions, language, yearlyYear, setYearlyYear, setShowYearlySummary, computeYearlyData, t }) {
+  const [selectedMonth, setSelectedMonth] = useState(null);
+  const [selectedCat,   setSelectedCat]   = useState(null);
+
+  const { totalSpent, monthlyAvg, biggestTx, catTotalsYear, monthlyTrend } = computeYearlyData(yearlyYear);
+  const currentYr  = new Date().getFullYear();
+  const yearOptions = [currentYr - 1, currentYr, currentYr + 1].filter((y) => y >= 2024);
+  const CATEGORIES  = getCategoriesForLang(language);
+  const donutData   = CATEGORIES.map((cat) => ({ name: cat.label, value: catTotalsYear[cat.value] || 0, cat })).filter((d) => d.value > 0);
+
+  const AreaTooltip = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div style={{ background: "#0F172A", padding: "8px 14px", borderRadius: 12 }}>
+        <p style={{ margin: 0, fontSize: 11, color: "#94A3B8", fontWeight: 500, fontFamily: FONT_FAMILY }}>{label}</p>
+        <p style={{ margin: "2px 0 0", fontSize: 14, color: "#F8FAFC", fontWeight: 600, fontFamily: MONO_FAMILY }}>{fmt(payload[0].value)}</p>
+      </div>
+    );
+  };
+
+  // ── Month detail view ──
+  if (selectedMonth !== null) {
+    const mIdx = selectedMonth;
+    const mKey = monthKey(yearlyYear, mIdx);
+    const mName = `${getMonthName(mIdx, language)} ${yearlyYear}`;
+    const mTxns = transactions.filter((tx) => tx.date.startsWith(mKey)).sort((a, b) => new Date(b.date) - new Date(a.date));
+    const mTotal = mTxns.reduce((s, tx) => s + tx.amount, 0);
+    const mCatTotals = {};
+    mTxns.forEach((tx) => { mCatTotals[tx.category] = (mCatTotals[tx.category] || 0) + tx.amount; });
+    const mCatSorted = Object.entries(mCatTotals).sort((a, b) => b[1] - a[1]);
+    const visibleTxns = selectedCat ? mTxns.filter((tx) => tx.category === selectedCat) : mTxns;
+    const activeCat = selectedCat ? getCat(selectedCat, language) : null;
+    const goPrev = () => { setSelectedCat(null); setSelectedMonth((m) => m > 0 ? m - 1 : m); };
+    const goNext = () => { setSelectedCat(null); setSelectedMonth((m) => m < 11 ? m + 1 : m); };
+
+    return (
+        <div style={{ position: "fixed", inset: 0, zIndex: 210, background: "#F8F7F4", overflowY: "auto", fontFamily: FONT_FAMILY }}>
+          <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(248,247,244,0.94)", backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(226,232,240,0.6)", padding: "14px 20px", display: "flex", alignItems: "center", gap: 12 }}>
+            <button onClick={() => { setSelectedMonth(null); setSelectedCat(null); }} style={{ display: "flex", alignItems: "center", gap: 6, background: "#FFFFFF", border: "none", cursor: "pointer", padding: "8px 16px", borderRadius: 99, fontFamily: FONT_FAMILY, fontSize: 13, fontWeight: 600, color: "#334155", boxShadow: "0 2px 8px rgba(15,23,42,0.08)", flexShrink: 0 }}>
+              <ArrowLeft size={14} /> {yearlyYear}
+            </button>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
+              <button onClick={goPrev} disabled={mIdx === 0} style={{ background: mIdx === 0 ? "#F1F5F9" : "#FFFFFF", border: "none", cursor: mIdx === 0 ? "default" : "pointer", width: 34, height: 34, borderRadius: 99, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: mIdx === 0 ? "none" : "0 2px 8px rgba(15,23,42,0.08)", color: mIdx === 0 ? "#CBD5E1" : "#334155" }}>
+                <ChevronLeft size={16} />
+              </button>
+              <span style={{ fontSize: 15, fontWeight: 600, color: "#0F172A", minWidth: 110, textAlign: "center", fontFamily: FONT_FAMILY }}>{mName}</span>
+              <button onClick={goNext} disabled={mIdx === 11} style={{ background: mIdx === 11 ? "#F1F5F9" : "#FFFFFF", border: "none", cursor: mIdx === 11 ? "default" : "pointer", width: 34, height: 34, borderRadius: 99, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: mIdx === 11 ? "none" : "0 2px 8px rgba(15,23,42,0.08)", color: mIdx === 11 ? "#CBD5E1" : "#334155" }}>
+                <ChevronRight size={16} />
+              </button>
+            </div>
+            <div style={{ width: 80, flexShrink: 0 }} />
+          </div>
+          <div style={{ maxWidth: 430, margin: "0 auto", padding: "0 16px 48px" }}>
+            <div style={{ padding: "28px 4px 16px" }}>
+              <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 500, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT_FAMILY }}>{t.totalSpentLabel}</p>
+              <p style={{ margin: 0, fontSize: 40, fontWeight: 600, letterSpacing: "-1.5px", color: "#0F172A", lineHeight: 1.1, fontFamily: FONT_FAMILY }}>{fmt(mTotal)}</p>
+              <p style={{ margin: "8px 0 0", fontSize: 13, color: "#94A3B8", fontWeight: 400, fontFamily: FONT_FAMILY, lineHeight: 1.6 }}>{mTxns.length} {t.txIn(mName)}</p>
+            </div>
+            {mTxns.length === 0 ? (
+              <div style={{ ...T.card, padding: "40px 24px", textAlign: "center" }}>
+                <p style={{ ...T.muted, margin: 0, fontFamily: FONT_FAMILY }}>{t.noTransIn(mName)}</p>
+              </div>
+            ) : (
+              <>
+                <p style={{ ...T.label, margin: "0 0 10px", paddingLeft: 4, fontFamily: FONT_FAMILY }}>{t.categories}</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+                  {mCatSorted.map(([catVal, amt]) => {
+                    const cat = getCat(catVal, language);
+                    const pct = mTotal > 0 ? amt / mTotal : 0;
+                    const isActive = selectedCat === catVal;
+                    const catTxCount = mTxns.filter((tx) => tx.category === catVal).length;
+                    return (
+                      <button key={catVal} onClick={() => setSelectedCat(isActive ? null : catVal)} style={{ width: "100%", border: "none", fontFamily: FONT_FAMILY, cursor: "pointer", textAlign: "left", padding: "16px 20px", borderRadius: 20, background: isActive ? cat.pastelBg : "#FFFFFF", outline: isActive ? `2px solid ${cat.bar}` : "2px solid transparent", boxShadow: isActive ? `0 6px 24px ${cat.bar}30` : "0 2px 12px rgba(15,23,42,0.06)", transition: "all 0.18s" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                          <div style={{ width: 42, height: 42, borderRadius: 14, flexShrink: 0, background: isActive ? "#FFFFFF" : cat.pastelBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{cat.icon}</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+                              <span style={{ fontSize: 14, fontWeight: 600, color: isActive ? cat.pastelText : "#0F172A", fontFamily: FONT_FAMILY }}>{cat.label}</span>
+                              <span style={{ fontFamily: MONO_FAMILY, fontSize: 15, fontWeight: 600, color: isActive ? cat.pastelText : "#0F172A" }}>{fmt(amt)}</span>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 2 }}>
+                              <span style={{ fontSize: 11, color: isActive ? cat.pastelText : "#94A3B8", fontWeight: 400, fontFamily: FONT_FAMILY, lineHeight: 1.6 }}>{catTxCount} {t.transactions}</span>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: isActive ? cat.pastelText : "#94A3B8", fontFamily: FONT_FAMILY }}>{(pct * 100).toFixed(0)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ height: 5, background: isActive ? `${cat.bar}30` : "#F1F5F9", borderRadius: 99, overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${pct * 100}%`, background: cat.bar, borderRadius: 99, transition: "width 0.45s cubic-bezier(0.34,1.56,0.64,1)" }} />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, paddingLeft: 4 }}>
+                  <p style={{ ...T.label, margin: 0, fontFamily: FONT_FAMILY }}>{selectedCat ? `${activeCat.icon} ${activeCat.label}` : t.allTransactions} · {visibleTxns.length}</p>
+                  {selectedCat && (
+                    <button onClick={() => setSelectedCat(null)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#F1F5F9", border: "none", cursor: "pointer", padding: "5px 12px", borderRadius: 99, fontFamily: FONT_FAMILY, fontSize: 11, fontWeight: 600, color: "#64748B" }}>
+                      <X size={11} /> {t.showAll}
+                    </button>
+                  )}
+                </div>
+                {selectedCat && (
+                  <div style={{ padding: "14px 20px", borderRadius: 16, marginBottom: 12, background: activeCat.pastelBg, border: `1.5px solid ${activeCat.bar}40` }}>
+                    <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 500, color: activeCat.pastelText, textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.7, fontFamily: FONT_FAMILY }}>{activeCat.label}</p>
+                    <p style={{ margin: 0, fontSize: 26, fontWeight: 600, letterSpacing: "-1px", color: activeCat.pastelText, fontFamily: MONO_FAMILY }}>{fmt(mCatTotals[selectedCat])}</p>
+                  </div>
+                )}
+                {visibleTxns.map((tx) => {
+                  const cat = getCat(tx.category, language);
+                  const tags = extractTags(tx.note);
+                  return (
+                    <div key={tx.id} style={{ ...T.card, padding: "14px 18px", marginBottom: 9, display: "flex", alignItems: "center", gap: 13 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 14, background: cat.pastelBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{cat.icon}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{cat.label}</span>
+                          {tx.split && <span style={{ fontSize: 10, fontWeight: 600, background: "#EEF2FF", color: T.indigo, padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{t.split}</span>}
+                          {tx.recurringId && <span style={{ fontSize: 10, fontWeight: 600, background: "#FEFCE8", color: "#A16207", padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{t.auto}</span>}
+                        </div>
+                        <p style={{ ...T.muted, margin: "2px 0 0", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT_FAMILY }}>{tx.note || t.noNote} · {fmtDate(tx.date)}</p>
+                        {tags.length > 0 && <div style={{ display: "flex", gap: 3, marginTop: 4, flexWrap: "wrap" }}>{tags.map((tag) => <span key={tag} style={{ fontSize: 10, fontWeight: 600, background: "#EEF2FF", color: "#6366F1", padding: "1px 7px", borderRadius: 99, fontFamily: FONT_FAMILY }}>{tag}</span>)}</div>}
+                      </div>
+                      <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: "#EF4444", flexShrink: 0 }}>−{fmt(tx.amount)}</span>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        </div>
+    );
+  }
+
+  // ── Main year overview ──
+  return (
+      <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#F8F7F4", overflowY: "auto", fontFamily: FONT_FAMILY }}>
+        <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(248,247,244,0.92)", backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(226,232,240,0.6)", padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <button onClick={() => setShowYearlySummary(false)} style={{ display: "flex", alignItems: "center", gap: 7, background: "#FFFFFF", border: "none", cursor: "pointer", padding: "8px 16px", borderRadius: 99, fontFamily: FONT_FAMILY, fontSize: 13, fontWeight: 600, color: "#334155", boxShadow: "0 2px 8px rgba(15,23,42,0.08)" }}>
+            <ArrowLeft size={14} /> Dashboard
+          </button>
+          <div style={{ display: "flex", gap: 4, background: "#FFFFFF", padding: 4, borderRadius: 99, boxShadow: "0 2px 8px rgba(15,23,42,0.08)" }}>
+            {yearOptions.map((y) => (
+              <button key={y} onClick={() => setYearlyYear(y)} style={{ padding: "6px 14px", borderRadius: 99, border: "none", cursor: "pointer", fontFamily: FONT_FAMILY, fontSize: 13, fontWeight: 600, background: yearlyYear === y ? "#0F172A" : "transparent", color: yearlyYear === y ? "#FFFFFF" : "#64748B", transition: "all 0.18s" }}>{y}</button>
+            ))}
+          </div>
+        </div>
+        <div style={{ maxWidth: 430, margin: "0 auto", padding: "0 16px 48px" }}>
+          <div style={{ padding: "32px 4px 24px" }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginBottom: 8, padding: "5px 12px", background: "#EEF2FF", borderRadius: 99 }}>
+              <Sparkles size={13} color="#4F46E5" />
+              <span style={{ fontSize: 11, fontWeight: 600, color: "#4F46E5", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: FONT_FAMILY }}>{t.yearInReview}</span>
+            </div>
+            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 600, color: "#0F172A", letterSpacing: "-0.5px", lineHeight: 1.3, fontFamily: FONT_FAMILY }}>{t.yourYear(yearlyYear)}</h1>
+          </div>
+          <div style={{ ...T.card, padding: "26px 26px", marginBottom: 12, background: "#0F172A" }}>
+            <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 500, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT_FAMILY }}>{t.totalSpentYear}</p>
+            <p style={{ margin: "0 0 16px", fontSize: 38, fontWeight: 600, letterSpacing: "-1.5px", color: "#F8FAFC", fontFamily: FONT_FAMILY, lineHeight: 1.1 }}>{fmt(totalSpent)}</p>
+            <div style={{ display: "flex", gap: 12 }}>
+              <div style={{ flex: 1, padding: "12px 14px", background: "rgba(255,255,255,0.07)", borderRadius: 14 }}>
+                <p style={{ margin: "0 0 4px", fontSize: 10, fontWeight: 500, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: FONT_FAMILY }}>{t.monthlyAvg}</p>
+                <p style={{ margin: 0, fontSize: 17, fontWeight: 600, color: "#F8FAFC", fontFamily: MONO_FAMILY }}>{fmt(monthlyAvg)}</p>
+              </div>
+              <div style={{ flex: 1, padding: "12px 14px", background: "rgba(255,255,255,0.07)", borderRadius: 14 }}>
+                <p style={{ margin: "0 0 4px", fontSize: 10, fontWeight: 500, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: FONT_FAMILY }}>{t.transactions}</p>
+                <p style={{ margin: 0, fontSize: 17, fontWeight: 600, color: "#F8FAFC", fontFamily: MONO_FAMILY }}>{computeYearlyData(yearlyYear).yearTxns.length}</p>
+              </div>
+            </div>
+          </div>
+          {biggestTx ? (
+            <div style={{ ...T.card, padding: "20px 22px", marginBottom: 12, background: "#EEF2FF" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 9, background: "#C7D2FE", display: "flex", alignItems: "center", justifyContent: "center" }}><TrendingUp size={14} color="#4338CA" /></div>
+                <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "#4338CA", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT_FAMILY }}>{t.biggestExpense(yearlyYear)}</p>
+              </div>
+              <p style={{ margin: "0 0 4px", fontSize: 30, fontWeight: 600, color: "#312E81", letterSpacing: "-1px", fontFamily: MONO_FAMILY }}>{fmt(biggestTx.amount)}</p>
+              <p style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 500, color: "#4338CA", fontFamily: FONT_FAMILY, lineHeight: 1.6 }}>{biggestTx.note || getCat(biggestTx.category, language).label}</p>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 26, height: 26, borderRadius: 8, background: "#C7D2FE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>{getCat(biggestTx.category, language).icon}</div>
+                <span style={{ fontSize: 12, fontWeight: 500, color: "#6366F1", fontFamily: FONT_FAMILY }}>{getCat(biggestTx.category, language).label} · {fmtDate(biggestTx.date)}</span>
+              </div>
+            </div>
+          ) : (
+            <div style={{ ...T.card, padding: "20px 22px", marginBottom: 12, background: "#EEF2FF", textAlign: "center" }}>
+              <p style={{ margin: 0, color: "#6366F1", fontWeight: 500, fontSize: 14, fontFamily: FONT_FAMILY }}>{t.noTxRecorded(yearlyYear)}</p>
+            </div>
+          )}
+          <div style={{ ...T.card, padding: "20px 22px", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
+              <BarChart2 size={15} color="#4F46E5" />
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{t.monthlyTrend}</p>
+            </div>
+            {totalSpent > 0 ? (
+              <ResponsiveContainer width="100%" height={150}>
+                <AreaChart data={monthlyTrend} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="yearGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#4F46E5" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="name" tick={{ fontSize: 9, fontWeight: 500, fill: "#94A3B8", fontFamily: FONT_FAMILY }} axisLine={false} tickLine={false} />
+                  <YAxis hide />
+                  <Tooltip content={<AreaTooltip />} />
+                  <Area type="monotone" dataKey="total" stroke="#4F46E5" strokeWidth={2} fill="url(#yearGrad)" dot={{ r: 3, fill: "#4F46E5", strokeWidth: 0 }} activeDot={{ r: 5, fill: "#4F46E5", strokeWidth: 0, cursor: "pointer", onClick: (_, payload) => { if (payload?.index !== undefined) setSelectedMonth(payload.index); } }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ height: 150, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <p style={{ ...T.muted, fontSize: 13, fontFamily: FONT_FAMILY }}>{t.noDataFor(yearlyYear)}</p>
+              </div>
+            )}
+            {totalSpent > 0 && (() => {
+              const activeMths = monthlyTrend.filter((m) => m.total > 0);
+              if (activeMths.length < 2) return null;
+              const best  = activeMths.reduce((min, m) => m.total < min.total ? m : min, activeMths[0]);
+              const worst = activeMths.reduce((max, m) => m.total > max.total ? m : max, activeMths[0]);
+              return (
+                <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                  <div onClick={() => setSelectedMonth(best.monthIdx)} style={{ flex: 1, padding: "10px 14px", background: "#F0FDF4", borderRadius: 12, cursor: "pointer" }}>
+                    <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 600, color: "#15803D", textTransform: "uppercase", fontFamily: FONT_FAMILY }}>{t.lightest}</p>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#166534", fontFamily: MONO_FAMILY }}>{best.name} · {fmt(best.total)}</p>
+                  </div>
+                  <div onClick={() => setSelectedMonth(worst.monthIdx)} style={{ flex: 1, padding: "10px 14px", background: "#FFF1F2", borderRadius: 12, cursor: "pointer" }}>
+                    <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 600, color: "#BE123C", textTransform: "uppercase", fontFamily: FONT_FAMILY }}>{t.heaviest}</p>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#9F1239", fontFamily: MONO_FAMILY }}>{worst.name} · {fmt(worst.total)}</p>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+          <div style={{ ...T.card, padding: "20px 22px", marginBottom: 12 }}>
+            <p style={{ margin: "0 0 16px", fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{t.spendingByCatLabel}</p>
+            {donutData.length > 0 ? (
+              <>
+                <div style={{ position: "relative", height: 170 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={donutData} cx="50%" cy="50%" innerRadius={50} outerRadius={76} paddingAngle={3} dataKey="value" strokeWidth={0}>
+                        {donutData.map((entry, i) => <Cell key={i} fill={entry.cat.bar} />)}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", textAlign: "center", pointerEvents: "none" }}>
+                    <p style={{ margin: 0, fontSize: 9, fontWeight: 500, color: "#94A3B8", textTransform: "uppercase", fontFamily: FONT_FAMILY }}>Total</p>
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: MONO_FAMILY }}>{fmt(totalSpent)}</p>
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 6 }}>
+                  {donutData.sort((a, b) => b.value - a.value).map((d) => {
+                    const pct = totalSpent > 0 ? (d.value / totalSpent * 100).toFixed(1) : 0;
+                    return (
+                      <div key={d.name} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ width: 9, height: 9, borderRadius: 3, background: d.cat.bar, flexShrink: 0 }} />
+                        <span style={{ fontSize: 13, fontWeight: 400, color: "#334155", flex: 1, fontFamily: FONT_FAMILY }}>{d.cat.icon} {d.name}</span>
+                        <span style={{ fontSize: 12, color: "#94A3B8", fontWeight: 400, fontFamily: FONT_FAMILY }}>{pct}%</span>
+                        <span style={{ fontFamily: MONO_FAMILY, fontSize: 13, fontWeight: 600, color: "#0F172A", minWidth: 72, textAlign: "right" }}>{fmt(d.value)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <div style={{ height: 110, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <p style={{ ...T.muted, fontSize: 13, fontFamily: FONT_FAMILY }}>{t.noCatData(yearlyYear)}</p>
+              </div>
+            )}
+          </div>
+          <p style={{ ...T.label, margin: "0 0 10px", paddingLeft: 4, fontFamily: FONT_FAMILY }}>{t.tapMonthExplore}</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 7, marginBottom: 12 }}>
+            {monthlyTrend.map(({ name, total, monthIdx }) => {
+              const hasData = total > 0;
+              const isCurrentMo = monthKey(yearlyYear, monthIdx) === currentMonth();
+              const isMax = total > 0 && total === Math.max(...monthlyTrend.map((m) => m.total));
+              return (
+                <button key={monthIdx} onClick={() => hasData && setSelectedMonth(monthIdx)} style={{ ...T.card, padding: "12px 14px", border: "none", fontFamily: FONT_FAMILY, cursor: hasData ? "pointer" : "default", textAlign: "left", background: isMax ? "#EEF2FF" : "#FFFFFF", outline: isCurrentMo ? `2px solid ${T.indigo}` : "none", opacity: hasData ? 1 : 0.45, transition: "transform 0.15s" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 5 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: isMax ? T.indigo : isCurrentMo ? T.indigo : "#0F172A", fontFamily: FONT_FAMILY }}>{name}</span>
+                    {isCurrentMo && <span style={{ fontSize: 8, fontWeight: 600, background: T.indigoLight, color: T.indigo, padding: "2px 5px", borderRadius: 99, fontFamily: FONT_FAMILY }}>{t.now}</span>}
+                    {isMax && !isCurrentMo && <span style={{ fontSize: 8, fontWeight: 600, background: "#EEF2FF", color: T.indigo, padding: "2px 5px", borderRadius: 99, fontFamily: FONT_FAMILY }}>{t.peak}</span>}
+                  </div>
+                  <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "#0F172A", fontFamily: MONO_FAMILY }}>{hasData ? fmt(total) : "—"}</p>
+                  {hasData && <p style={{ margin: "3px 0 0", fontSize: 9, color: "#94A3B8", fontWeight: 400, fontFamily: FONT_FAMILY }}>{t.tapToView}</p>}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ ...T.card, padding: "20px 22px", marginBottom: 12 }}>
+            <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{t.monthByMonth}</p>
+            <p style={{ margin: "0 0 14px", fontSize: 11, color: "#94A3B8", fontWeight: 400, fontFamily: FONT_FAMILY }}>{t.tapBarDrill}</p>
+            {totalSpent > 0 ? (
+              <ResponsiveContainer width="100%" height={130}>
+                <BarChart data={monthlyTrend} margin={{ top: 4, right: 0, left: 0, bottom: 0 }} barSize={16}
+                  onClick={(data) => { if (data?.activePayload?.[0]?.payload?.total > 0) setSelectedMonth(data.activePayload[0].payload.monthIdx); }}>
+                  <XAxis dataKey="name" tick={{ fontSize: 9, fontWeight: 500, fill: "#94A3B8", fontFamily: FONT_FAMILY }} axisLine={false} tickLine={false} />
+                  <YAxis hide />
+                  <Tooltip content={<AreaTooltip />} cursor={{ fill: "rgba(79,70,229,0.06)", radius: 8 }} />
+                  <Bar dataKey="total" radius={[5, 5, 2, 2]}>
+                    {monthlyTrend.map((entry, i) => {
+                      const isMax = entry.total === Math.max(...monthlyTrend.map((m) => m.total)) && entry.total > 0;
+                      const isCurrentMo = monthKey(yearlyYear, i) === currentMonth();
+                      return <Cell key={i} fill={isMax ? "#4F46E5" : isCurrentMo ? "#818CF8" : "#C7D2FE"} style={{ cursor: entry.total > 0 ? "pointer" : "default" }} />;
+                    })}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ height: 90, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <p style={{ ...T.muted, fontSize: 13, fontFamily: FONT_FAMILY }}>{t.noData}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+  );
+}
+
+// ─── Static helper components (must be top-level to avoid remount on every render) ─
+const SectionLabel = ({ children, style: s = {} }) => (
+  <p style={{ ...T.label, margin: "0 0 14px", paddingLeft: 4, ...s }}>{children}</p>
+);
+const CardWrap = ({ children, style: s = {} }) => (
+  <div style={{ ...T.card, padding: "20px 22px", marginBottom: 12, ...s }}>{children}</div>
+);
+function LangToggle({ language, setLanguage }) {
+  return (
+    <button
+      onClick={() => setLanguage((l) => l === "EN" ? "TH" : "EN")}
+      style={{
+        display: "flex", alignItems: "center", gap: 5,
+        background: "#FFFFFF", border: "1.5px solid #E2E8F0",
+        cursor: "pointer", padding: "6px 12px", borderRadius: 99,
+        fontFamily: FONT_FAMILY, fontSize: 12, fontWeight: 600,
+        color: "#475569", boxShadow: "0 1px 4px rgba(15,23,42,0.07)",
+        transition: "all 0.18s",
+      }}
+    >
+      <Globe size={13} color="#4F46E5" />
+      <span style={{ color: language === "EN" ? T.indigo : "#94A3B8", fontWeight: language === "EN" ? 700 : 500 }}>EN</span>
+      <span style={{ color: "#CBD5E1" }}>/</span>
+      <span style={{ color: language === "TH" ? T.indigo : "#94A3B8", fontWeight: language === "TH" ? 700 : 500 }}>TH</span>
+    </button>
+  );
+}
+
 export default function FinanceTracker() {
   const [transactions,  setTransactions]  = useState(() => lsGet("ft_txns",    []));
   const [subscriptions, setSubscriptions] = useState(() => lsGet("ft_subs",    []));
@@ -506,32 +851,7 @@ export default function FinanceTracker() {
     return pct >= 0.75 && !dismissedAlerts[alertKey];
   }).length + (totalBudget > 0 && budgetPct >= 0.75 && !dismissedAlerts[`${currentMonth()}_total`] ? 1 : 0);
 
-  const SectionLabel = ({ children, style: s = {} }) => (
-    <p style={{ ...T.label, margin: "0 0 14px", paddingLeft: 4, ...s }}>{children}</p>
-  );
-  const CardWrap = ({ children, style: s = {} }) => (
-    <div style={{ ...T.card, padding: "20px 22px", marginBottom: 12, ...s }}>{children}</div>
-  );
-
-  // ── Language toggle button ─────────────────────────────────────────────────
-  const LangToggle = () => (
-    <button
-      onClick={() => setLanguage((l) => l === "EN" ? "TH" : "EN")}
-      style={{
-        display: "flex", alignItems: "center", gap: 5,
-        background: "#FFFFFF", border: "1.5px solid #E2E8F0",
-        cursor: "pointer", padding: "6px 12px", borderRadius: 99,
-        fontFamily: FONT_FAMILY, fontSize: 12, fontWeight: 600,
-        color: "#475569", boxShadow: "0 1px 4px rgba(15,23,42,0.07)",
-        transition: "all 0.18s",
-      }}
-    >
-      <Globe size={13} color="#4F46E5" />
-      <span style={{ color: language === "EN" ? T.indigo : "#94A3B8", fontWeight: language === "EN" ? 700 : 500 }}>EN</span>
-      <span style={{ color: "#CBD5E1" }}>/</span>
-      <span style={{ color: language === "TH" ? T.indigo : "#94A3B8", fontWeight: language === "TH" ? 700 : 500 }}>TH</span>
-    </button>
-  );
+  // SectionLabel, CardWrap, LangToggle are top-level components (see above FinanceTracker)
 
   // ── Yearly Summary ─────────────────────────────────────────────────────────
   const computeYearlyData = (year) => {
@@ -553,324 +873,12 @@ export default function FinanceTracker() {
     return { totalSpent, monthlyAvg, biggestTx, catTotalsYear, monthlyTrend, yearTxns };
   };
 
-  const YearlySummary = () => {
-    const [selectedMonth, setSelectedMonth] = useState(null);
-    const { totalSpent, monthlyAvg, biggestTx, catTotalsYear, monthlyTrend } = computeYearlyData(yearlyYear);
-    const currentYr  = new Date().getFullYear();
-    const yearOptions = [currentYr - 1, currentYr, currentYr + 1].filter((y) => y >= 2024);
-    const donutData   = CATEGORIES.map((cat) => ({ name: cat.label, value: catTotalsYear[cat.value] || 0, cat })).filter((d) => d.value > 0);
-
-    const AreaTooltip = ({ active, payload, label }) => {
-      if (!active || !payload?.length) return null;
-      return (
-        <div style={{ background: "#0F172A", padding: "8px 14px", borderRadius: 12 }}>
-          <p style={{ margin: 0, fontSize: 11, color: "#94A3B8", fontWeight: 500, fontFamily: FONT_FAMILY }}>{label}</p>
-          <p style={{ margin: "2px 0 0", fontSize: 14, color: "#F8FAFC", fontWeight: 600, fontFamily: MONO_FAMILY }}>{fmt(payload[0].value)}</p>
-        </div>
-      );
-    };
-
-    if (selectedMonth !== null) {
-      const [selectedCat, setSelectedCat] = useState(null);
-      const mIdx = selectedMonth;
-      const mKey = monthKey(yearlyYear, mIdx);
-      const mName = `${getMonthName(mIdx, language)} ${yearlyYear}`;
-      const mTxns = transactions.filter((tx) => tx.date.startsWith(mKey)).sort((a, b) => new Date(b.date) - new Date(a.date));
-      const mTotal = mTxns.reduce((s, tx) => s + tx.amount, 0);
-      const mCatTotals = {};
-      mTxns.forEach((tx) => { mCatTotals[tx.category] = (mCatTotals[tx.category] || 0) + tx.amount; });
-      const mCatSorted = Object.entries(mCatTotals).sort((a, b) => b[1] - a[1]);
-      const visibleTxns = selectedCat ? mTxns.filter((tx) => tx.category === selectedCat) : mTxns;
-      const activeCat = selectedCat ? getCat(selectedCat, language) : null;
-      const goPrev = () => { setSelectedCat(null); setSelectedMonth((m) => m > 0 ? m - 1 : m); };
-      const goNext = () => { setSelectedCat(null); setSelectedMonth((m) => m < 11 ? m + 1 : m); };
-
-      return (
-        <div style={{ position: "fixed", inset: 0, zIndex: 210, background: "#F8F7F4", overflowY: "auto", fontFamily: FONT_FAMILY }}>
-          <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(248,247,244,0.94)", backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(226,232,240,0.6)", padding: "14px 20px", display: "flex", alignItems: "center", gap: 12 }}>
-            <button onClick={() => setSelectedMonth(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "#FFFFFF", border: "none", cursor: "pointer", padding: "8px 16px", borderRadius: 99, fontFamily: FONT_FAMILY, fontSize: 13, fontWeight: 600, color: "#334155", boxShadow: "0 2px 8px rgba(15,23,42,0.08)", flexShrink: 0 }}>
-              <ArrowLeft size={14} /> {yearlyYear}
-            </button>
-            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
-              <button onClick={goPrev} disabled={mIdx === 0} style={{ background: mIdx === 0 ? "#F1F5F9" : "#FFFFFF", border: "none", cursor: mIdx === 0 ? "default" : "pointer", width: 34, height: 34, borderRadius: 99, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: mIdx === 0 ? "none" : "0 2px 8px rgba(15,23,42,0.08)", color: mIdx === 0 ? "#CBD5E1" : "#334155" }}>
-                <ChevronLeft size={16} />
-              </button>
-              <span style={{ fontSize: 15, fontWeight: 600, color: "#0F172A", minWidth: 110, textAlign: "center", fontFamily: FONT_FAMILY }}>{mName}</span>
-              <button onClick={goNext} disabled={mIdx === 11} style={{ background: mIdx === 11 ? "#F1F5F9" : "#FFFFFF", border: "none", cursor: mIdx === 11 ? "default" : "pointer", width: 34, height: 34, borderRadius: 99, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: mIdx === 11 ? "none" : "0 2px 8px rgba(15,23,42,0.08)", color: mIdx === 11 ? "#CBD5E1" : "#334155" }}>
-                <ChevronRight size={16} />
-              </button>
-            </div>
-            <div style={{ width: 80, flexShrink: 0 }} />
-          </div>
-          <div style={{ maxWidth: 430, margin: "0 auto", padding: "0 16px 48px" }}>
-            <div style={{ padding: "28px 4px 16px" }}>
-              <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 500, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT_FAMILY }}>{t.totalSpentLabel}</p>
-              <p style={{ margin: 0, fontSize: 40, fontWeight: 600, letterSpacing: "-1.5px", color: "#0F172A", lineHeight: 1.1, fontFamily: FONT_FAMILY }}>{fmt(mTotal)}</p>
-              <p style={{ margin: "8px 0 0", fontSize: 13, color: "#94A3B8", fontWeight: 400, fontFamily: FONT_FAMILY, lineHeight: 1.6 }}>{mTxns.length} {t.txIn(mName)}</p>
-            </div>
-            {mTxns.length === 0 ? (
-              <div style={{ ...T.card, padding: "40px 24px", textAlign: "center" }}>
-                <p style={{ ...T.muted, margin: 0, fontFamily: FONT_FAMILY }}>{t.noTransIn(mName)}</p>
-              </div>
-            ) : (
-              <>
-                <p style={{ ...T.label, margin: "0 0 10px", paddingLeft: 4, fontFamily: FONT_FAMILY }}>{t.categories}</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
-                  {mCatSorted.map(([catVal, amt]) => {
-                    const cat = getCat(catVal, language);
-                    const pct = mTotal > 0 ? amt / mTotal : 0;
-                    const isActive = selectedCat === catVal;
-                    const catTxCount = mTxns.filter((tx) => tx.category === catVal).length;
-                    return (
-                      <button key={catVal} onClick={() => setSelectedCat(isActive ? null : catVal)} style={{ width: "100%", border: "none", fontFamily: FONT_FAMILY, cursor: "pointer", textAlign: "left", padding: "16px 20px", borderRadius: 20, background: isActive ? cat.pastelBg : "#FFFFFF", outline: isActive ? `2px solid ${cat.bar}` : "2px solid transparent", boxShadow: isActive ? `0 6px 24px ${cat.bar}30` : "0 2px 12px rgba(15,23,42,0.06)", transition: "all 0.18s" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-                          <div style={{ width: 42, height: 42, borderRadius: 14, flexShrink: 0, background: isActive ? "#FFFFFF" : cat.pastelBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{cat.icon}</div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-                              <span style={{ fontSize: 14, fontWeight: 600, color: isActive ? cat.pastelText : "#0F172A", fontFamily: FONT_FAMILY }}>{cat.label}</span>
-                              <span style={{ fontFamily: MONO_FAMILY, fontSize: 15, fontWeight: 600, color: isActive ? cat.pastelText : "#0F172A" }}>{fmt(amt)}</span>
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 2 }}>
-                              <span style={{ fontSize: 11, color: isActive ? cat.pastelText : "#94A3B8", fontWeight: 400, fontFamily: FONT_FAMILY, lineHeight: 1.6 }}>{catTxCount} {t.transactions}</span>
-                              <span style={{ fontSize: 12, fontWeight: 600, color: isActive ? cat.pastelText : "#94A3B8", fontFamily: FONT_FAMILY }}>{(pct * 100).toFixed(0)}%</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div style={{ height: 5, background: isActive ? `${cat.bar}30` : "#F1F5F9", borderRadius: 99, overflow: "hidden" }}>
-                          <div style={{ height: "100%", width: `${pct * 100}%`, background: cat.bar, borderRadius: 99, transition: "width 0.45s cubic-bezier(0.34,1.56,0.64,1)" }} />
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, paddingLeft: 4 }}>
-                  <p style={{ ...T.label, margin: 0, fontFamily: FONT_FAMILY }}>{selectedCat ? `${activeCat.icon} ${activeCat.label}` : t.allTransactions} · {visibleTxns.length}</p>
-                  {selectedCat && (
-                    <button onClick={() => setSelectedCat(null)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#F1F5F9", border: "none", cursor: "pointer", padding: "5px 12px", borderRadius: 99, fontFamily: FONT_FAMILY, fontSize: 11, fontWeight: 600, color: "#64748B" }}>
-                      <X size={11} /> {t.showAll}
-                    </button>
-                  )}
-                </div>
-                {selectedCat && (
-                  <div style={{ padding: "14px 20px", borderRadius: 16, marginBottom: 12, background: activeCat.pastelBg, border: `1.5px solid ${activeCat.bar}40` }}>
-                    <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 500, color: activeCat.pastelText, textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.7, fontFamily: FONT_FAMILY }}>{activeCat.label}</p>
-                    <p style={{ margin: 0, fontSize: 26, fontWeight: 600, letterSpacing: "-1px", color: activeCat.pastelText, fontFamily: MONO_FAMILY }}>{fmt(mCatTotals[selectedCat])}</p>
-                  </div>
-                )}
-                {visibleTxns.map((tx) => {
-                  const cat = getCat(tx.category, language);
-                  const tags = extractTags(tx.note);
-                  return (
-                    <div key={tx.id} style={{ ...T.card, padding: "14px 18px", marginBottom: 9, display: "flex", alignItems: "center", gap: 13 }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 14, background: cat.pastelBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{cat.icon}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{cat.label}</span>
-                          {tx.split && <span style={{ fontSize: 10, fontWeight: 600, background: "#EEF2FF", color: T.indigo, padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{t.split}</span>}
-                          {tx.recurringId && <span style={{ fontSize: 10, fontWeight: 600, background: "#FEFCE8", color: "#A16207", padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{t.auto}</span>}
-                        </div>
-                        <p style={{ ...T.muted, margin: "2px 0 0", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT_FAMILY }}>{tx.note || t.noNote} · {fmtDate(tx.date)}</p>
-                        {tags.length > 0 && <div style={{ display: "flex", gap: 3, marginTop: 4, flexWrap: "wrap" }}>{tags.map((tag) => <span key={tag} style={{ fontSize: 10, fontWeight: 600, background: "#EEF2FF", color: "#6366F1", padding: "1px 7px", borderRadius: 99, fontFamily: FONT_FAMILY }}>{tag}</span>)}</div>}
-                      </div>
-                      <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: "#EF4444", flexShrink: 0 }}>−{fmt(tx.amount)}</span>
-                    </div>
-                  );
-                })}
-              </>
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "#F8F7F4", overflowY: "auto", fontFamily: FONT_FAMILY }}>
-        <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(248,247,244,0.92)", backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(226,232,240,0.6)", padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button onClick={() => setShowYearlySummary(false)} style={{ display: "flex", alignItems: "center", gap: 7, background: "#FFFFFF", border: "none", cursor: "pointer", padding: "8px 16px", borderRadius: 99, fontFamily: FONT_FAMILY, fontSize: 13, fontWeight: 600, color: "#334155", boxShadow: "0 2px 8px rgba(15,23,42,0.08)" }}>
-            <ArrowLeft size={14} /> Dashboard
-          </button>
-          <div style={{ display: "flex", gap: 4, background: "#FFFFFF", padding: 4, borderRadius: 99, boxShadow: "0 2px 8px rgba(15,23,42,0.08)" }}>
-            {yearOptions.map((y) => (
-              <button key={y} onClick={() => setYearlyYear(y)} style={{ padding: "6px 14px", borderRadius: 99, border: "none", cursor: "pointer", fontFamily: FONT_FAMILY, fontSize: 13, fontWeight: 600, background: yearlyYear === y ? "#0F172A" : "transparent", color: yearlyYear === y ? "#FFFFFF" : "#64748B", transition: "all 0.18s" }}>{y}</button>
-            ))}
-          </div>
-        </div>
-        <div style={{ maxWidth: 430, margin: "0 auto", padding: "0 16px 48px" }}>
-          <div style={{ padding: "32px 4px 24px" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginBottom: 8, padding: "5px 12px", background: "#EEF2FF", borderRadius: 99 }}>
-              <Sparkles size={13} color="#4F46E5" />
-              <span style={{ fontSize: 11, fontWeight: 600, color: "#4F46E5", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: FONT_FAMILY }}>{t.yearInReview}</span>
-            </div>
-            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 600, color: "#0F172A", letterSpacing: "-0.5px", lineHeight: 1.3, fontFamily: FONT_FAMILY }}>{t.yourYear(yearlyYear)}</h1>
-          </div>
-          <div style={{ ...T.card, padding: "26px 26px", marginBottom: 12, background: "#0F172A" }}>
-            <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 500, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT_FAMILY }}>{t.totalSpentYear}</p>
-            <p style={{ margin: "0 0 16px", fontSize: 38, fontWeight: 600, letterSpacing: "-1.5px", color: "#F8FAFC", fontFamily: FONT_FAMILY, lineHeight: 1.1 }}>{fmt(totalSpent)}</p>
-            <div style={{ display: "flex", gap: 12 }}>
-              <div style={{ flex: 1, padding: "12px 14px", background: "rgba(255,255,255,0.07)", borderRadius: 14 }}>
-                <p style={{ margin: "0 0 4px", fontSize: 10, fontWeight: 500, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: FONT_FAMILY }}>{t.monthlyAvg}</p>
-                <p style={{ margin: 0, fontSize: 17, fontWeight: 600, color: "#F8FAFC", fontFamily: MONO_FAMILY }}>{fmt(monthlyAvg)}</p>
-              </div>
-              <div style={{ flex: 1, padding: "12px 14px", background: "rgba(255,255,255,0.07)", borderRadius: 14 }}>
-                <p style={{ margin: "0 0 4px", fontSize: 10, fontWeight: 500, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: FONT_FAMILY }}>{t.transactions}</p>
-                <p style={{ margin: 0, fontSize: 17, fontWeight: 600, color: "#F8FAFC", fontFamily: MONO_FAMILY }}>{computeYearlyData(yearlyYear).yearTxns.length}</p>
-              </div>
-            </div>
-          </div>
-          {biggestTx ? (
-            <div style={{ ...T.card, padding: "20px 22px", marginBottom: 12, background: "#EEF2FF" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <div style={{ width: 28, height: 28, borderRadius: 9, background: "#C7D2FE", display: "flex", alignItems: "center", justifyContent: "center" }}><TrendingUp size={14} color="#4338CA" /></div>
-                <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "#4338CA", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT_FAMILY }}>{t.biggestExpense(yearlyYear)}</p>
-              </div>
-              <p style={{ margin: "0 0 4px", fontSize: 30, fontWeight: 600, color: "#312E81", letterSpacing: "-1px", fontFamily: MONO_FAMILY }}>{fmt(biggestTx.amount)}</p>
-              <p style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 500, color: "#4338CA", fontFamily: FONT_FAMILY, lineHeight: 1.6 }}>{biggestTx.note || getCat(biggestTx.category, language).label}</p>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 26, height: 26, borderRadius: 8, background: "#C7D2FE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>{getCat(biggestTx.category, language).icon}</div>
-                <span style={{ fontSize: 12, fontWeight: 500, color: "#6366F1", fontFamily: FONT_FAMILY }}>{getCat(biggestTx.category, language).label} · {fmtDate(biggestTx.date)}</span>
-              </div>
-            </div>
-          ) : (
-            <div style={{ ...T.card, padding: "20px 22px", marginBottom: 12, background: "#EEF2FF", textAlign: "center" }}>
-              <p style={{ margin: 0, color: "#6366F1", fontWeight: 500, fontSize: 14, fontFamily: FONT_FAMILY }}>{t.noTxRecorded(yearlyYear)}</p>
-            </div>
-          )}
-          <div style={{ ...T.card, padding: "20px 22px", marginBottom: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
-              <BarChart2 size={15} color="#4F46E5" />
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{t.monthlyTrend}</p>
-            </div>
-            {totalSpent > 0 ? (
-              <ResponsiveContainer width="100%" height={150}>
-                <AreaChart data={monthlyTrend} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="yearGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="#4F46E5" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="name" tick={{ fontSize: 9, fontWeight: 500, fill: "#94A3B8", fontFamily: FONT_FAMILY }} axisLine={false} tickLine={false} />
-                  <YAxis hide />
-                  <Tooltip content={<AreaTooltip />} />
-                  <Area type="monotone" dataKey="total" stroke="#4F46E5" strokeWidth={2} fill="url(#yearGrad)" dot={{ r: 3, fill: "#4F46E5", strokeWidth: 0 }} activeDot={{ r: 5, fill: "#4F46E5", strokeWidth: 0, cursor: "pointer", onClick: (_, payload) => { if (payload?.index !== undefined) setSelectedMonth(payload.index); } }} />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <div style={{ height: 150, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <p style={{ ...T.muted, fontSize: 13, fontFamily: FONT_FAMILY }}>{t.noDataFor(yearlyYear)}</p>
-              </div>
-            )}
-            {totalSpent > 0 && (() => {
-              const activeMths = monthlyTrend.filter((m) => m.total > 0);
-              if (activeMths.length < 2) return null;
-              const best  = activeMths.reduce((min, m) => m.total < min.total ? m : min, activeMths[0]);
-              const worst = activeMths.reduce((max, m) => m.total > max.total ? m : max, activeMths[0]);
-              return (
-                <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                  <div onClick={() => setSelectedMonth(best.monthIdx)} style={{ flex: 1, padding: "10px 14px", background: "#F0FDF4", borderRadius: 12, cursor: "pointer" }}>
-                    <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 600, color: "#15803D", textTransform: "uppercase", fontFamily: FONT_FAMILY }}>{t.lightest}</p>
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#166534", fontFamily: MONO_FAMILY }}>{best.name} · {fmt(best.total)}</p>
-                  </div>
-                  <div onClick={() => setSelectedMonth(worst.monthIdx)} style={{ flex: 1, padding: "10px 14px", background: "#FFF1F2", borderRadius: 12, cursor: "pointer" }}>
-                    <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 600, color: "#BE123C", textTransform: "uppercase", fontFamily: FONT_FAMILY }}>{t.heaviest}</p>
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#9F1239", fontFamily: MONO_FAMILY }}>{worst.name} · {fmt(worst.total)}</p>
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-          <div style={{ ...T.card, padding: "20px 22px", marginBottom: 12 }}>
-            <p style={{ margin: "0 0 16px", fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{t.spendingByCatLabel}</p>
-            {donutData.length > 0 ? (
-              <>
-                <div style={{ position: "relative", height: 170 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={donutData} cx="50%" cy="50%" innerRadius={50} outerRadius={76} paddingAngle={3} dataKey="value" strokeWidth={0}>
-                        {donutData.map((entry, i) => <Cell key={i} fill={entry.cat.bar} />)}
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", textAlign: "center", pointerEvents: "none" }}>
-                    <p style={{ margin: 0, fontSize: 9, fontWeight: 500, color: "#94A3B8", textTransform: "uppercase", fontFamily: FONT_FAMILY }}>Total</p>
-                    <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: MONO_FAMILY }}>{fmt(totalSpent)}</p>
-                  </div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 6 }}>
-                  {donutData.sort((a, b) => b.value - a.value).map((d) => {
-                    const pct = totalSpent > 0 ? (d.value / totalSpent * 100).toFixed(1) : 0;
-                    return (
-                      <div key={d.name} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <div style={{ width: 9, height: 9, borderRadius: 3, background: d.cat.bar, flexShrink: 0 }} />
-                        <span style={{ fontSize: 13, fontWeight: 400, color: "#334155", flex: 1, fontFamily: FONT_FAMILY }}>{d.cat.icon} {d.name}</span>
-                        <span style={{ fontSize: 12, color: "#94A3B8", fontWeight: 400, fontFamily: FONT_FAMILY }}>{pct}%</span>
-                        <span style={{ fontFamily: MONO_FAMILY, fontSize: 13, fontWeight: 600, color: "#0F172A", minWidth: 72, textAlign: "right" }}>{fmt(d.value)}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            ) : (
-              <div style={{ height: 110, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <p style={{ ...T.muted, fontSize: 13, fontFamily: FONT_FAMILY }}>{t.noCatData(yearlyYear)}</p>
-              </div>
-            )}
-          </div>
-          <p style={{ ...T.label, margin: "0 0 10px", paddingLeft: 4, fontFamily: FONT_FAMILY }}>{t.tapMonthExplore}</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 7, marginBottom: 12 }}>
-            {monthlyTrend.map(({ name, total, monthIdx }) => {
-              const hasData = total > 0;
-              const isCurrentMo = monthKey(yearlyYear, monthIdx) === currentMonth();
-              const isMax = total > 0 && total === Math.max(...monthlyTrend.map((m) => m.total));
-              return (
-                <button key={monthIdx} onClick={() => hasData && setSelectedMonth(monthIdx)} style={{ ...T.card, padding: "12px 14px", border: "none", fontFamily: FONT_FAMILY, cursor: hasData ? "pointer" : "default", textAlign: "left", background: isMax ? "#EEF2FF" : "#FFFFFF", outline: isCurrentMo ? `2px solid ${T.indigo}` : "none", opacity: hasData ? 1 : 0.45, transition: "transform 0.15s" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 5 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: isMax ? T.indigo : isCurrentMo ? T.indigo : "#0F172A", fontFamily: FONT_FAMILY }}>{name}</span>
-                    {isCurrentMo && <span style={{ fontSize: 8, fontWeight: 600, background: T.indigoLight, color: T.indigo, padding: "2px 5px", borderRadius: 99, fontFamily: FONT_FAMILY }}>{t.now}</span>}
-                    {isMax && !isCurrentMo && <span style={{ fontSize: 8, fontWeight: 600, background: "#EEF2FF", color: T.indigo, padding: "2px 5px", borderRadius: 99, fontFamily: FONT_FAMILY }}>{t.peak}</span>}
-                  </div>
-                  <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "#0F172A", fontFamily: MONO_FAMILY }}>{hasData ? fmt(total) : "—"}</p>
-                  {hasData && <p style={{ margin: "3px 0 0", fontSize: 9, color: "#94A3B8", fontWeight: 400, fontFamily: FONT_FAMILY }}>{t.tapToView}</p>}
-                </button>
-              );
-            })}
-          </div>
-          <div style={{ ...T.card, padding: "20px 22px", marginBottom: 12 }}>
-            <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{t.monthByMonth}</p>
-            <p style={{ margin: "0 0 14px", fontSize: 11, color: "#94A3B8", fontWeight: 400, fontFamily: FONT_FAMILY }}>{t.tapBarDrill}</p>
-            {totalSpent > 0 ? (
-              <ResponsiveContainer width="100%" height={130}>
-                <BarChart data={monthlyTrend} margin={{ top: 4, right: 0, left: 0, bottom: 0 }} barSize={16}
-                  onClick={(data) => { if (data?.activePayload?.[0]?.payload?.total > 0) setSelectedMonth(data.activePayload[0].payload.monthIdx); }}>
-                  <XAxis dataKey="name" tick={{ fontSize: 9, fontWeight: 500, fill: "#94A3B8", fontFamily: FONT_FAMILY }} axisLine={false} tickLine={false} />
-                  <YAxis hide />
-                  <Tooltip content={<AreaTooltip />} cursor={{ fill: "rgba(79,70,229,0.06)", radius: 8 }} />
-                  <Bar dataKey="total" radius={[5, 5, 2, 2]}>
-                    {monthlyTrend.map((entry, i) => {
-                      const isMax = entry.total === Math.max(...monthlyTrend.map((m) => m.total)) && entry.total > 0;
-                      const isCurrentMo = monthKey(yearlyYear, i) === currentMonth();
-                      return <Cell key={i} fill={isMax ? "#4F46E5" : isCurrentMo ? "#818CF8" : "#C7D2FE"} style={{ cursor: entry.total > 0 ? "pointer" : "default" }} />;
-                    })}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div style={{ height: 90, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <p style={{ ...T.muted, fontSize: 13, fontFamily: FONT_FAMILY }}>{t.noData}</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   // ══════════════════════════════════════════════════════════════════════════
   return (
     <div style={{ fontFamily: FONT_FAMILY, maxWidth: 430, margin: "0 auto", minHeight: "100vh", background: T.pageBg, paddingBottom: 90 }}>
       <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
-      {showYearlySummary && <YearlySummary />}
+      {showYearlySummary && <YearlySummary transactions={transactions} language={language} yearlyYear={yearlyYear} setYearlyYear={setYearlyYear} setShowYearlySummary={setShowYearlySummary} computeYearlyData={computeYearlyData} t={t} />}
 
       {/* ── Global Add Transaction bottom sheet (works from overlay too) ── */}
       {showForm && formPrefilledMonth && (
@@ -901,7 +909,7 @@ export default function FinanceTracker() {
             </div>
 
             <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{t.amountTHB}</p>
-            <input type="number" inputMode="decimal" placeholder="0" value={form.amount}
+            <input type="text" inputMode="decimal" placeholder="0" value={form.amount}
               onChange={(e) => setForm({ ...form, amount: e.target.value })}
               style={{ ...T.input, fontSize: 30, fontWeight: 600, fontFamily: MONO_FAMILY, letterSpacing: "-1px", marginBottom: 16, padding: "14px 18px" }} />
 
@@ -956,12 +964,10 @@ export default function FinanceTracker() {
             <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{t.noteTags}</p>
             <input type="text" placeholder={t.notePlaceholder} value={form.note}
               onChange={(e) => setForm({ ...form, note: e.target.value })}
-              style={{ ...T.input, marginBottom: extractTags(form.note).length ? 8 : 14 }} />
-            {extractTags(form.note).length > 0 && (
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
-                {extractTags(form.note).map((tag) => <span key={tag} style={{ background: "#EEF2FF", color: T.indigo, fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 99, fontFamily: FONT_FAMILY }}>{tag}</span>)}
-              </div>
-            )}
+              style={{ ...T.input, marginBottom: 8 }} />
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14, minHeight: 0 }}>
+              {extractTags(form.note).map((tag) => <span key={tag} style={{ background: "#EEF2FF", color: T.indigo, fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 99, fontFamily: FONT_FAMILY }}>{tag}</span>)}
+            </div>
 
             <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{t.date}</p>
             <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })}
@@ -1188,7 +1194,7 @@ export default function FinanceTracker() {
             <p style={{ ...T.muted, margin: 0, fontWeight: 500, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: FONT_FAMILY }}>
               {new Date().toLocaleDateString(language === "TH" ? "th-TH" : "en-US", { month: "long", year: "numeric" })}
             </p>
-            <LangToggle />
+            <LangToggle language={language} setLanguage={setLanguage} />
           </div>
           <button onClick={() => { setYearlyYear(new Date().getFullYear()); setShowYearlySummary(true); }} style={{
             display: "flex", alignItems: "center", gap: 6,
@@ -1272,7 +1278,7 @@ export default function FinanceTracker() {
               </div>
 
               <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{t.amountTHB}</p>
-              <input type="number" inputMode="decimal" placeholder="0" value={form.amount}
+              <input type="text" inputMode="decimal" placeholder="0" value={form.amount}
                 onChange={(e) => setForm({ ...form, amount: e.target.value })}
                 style={{ ...T.input, fontSize: 30, fontWeight: 600, fontFamily: MONO_FAMILY, letterSpacing: "-1px", marginBottom: 16, padding: "14px 18px" }} />
 
@@ -1297,7 +1303,7 @@ export default function FinanceTracker() {
                   {form.split && (
                     <div style={{ marginBottom: 14 }}>
                       <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{t.reimbursedAmt}</p>
-                      <input type="number" inputMode="decimal" placeholder="0" value={form.reimbursed}
+                      <input type="text" inputMode="decimal" placeholder="0" value={form.reimbursed}
                         onChange={(e) => setForm({ ...form, reimbursed: e.target.value })}
                         style={{ ...T.input, fontFamily: MONO_FAMILY, fontSize: 18, fontWeight: 600, marginBottom: 10 }} />
                       {form.amount && (
@@ -1328,12 +1334,10 @@ export default function FinanceTracker() {
               <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{t.noteTags}</p>
               <input type="text" placeholder={t.notePlaceholder} value={form.note}
                 onChange={(e) => setForm({ ...form, note: e.target.value })}
-                style={{ ...T.input, marginBottom: extractTags(form.note).length ? 8 : 14 }} />
-              {extractTags(form.note).length > 0 && (
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
-                  {extractTags(form.note).map((tag) => <span key={tag} style={{ background: "#EEF2FF", color: T.indigo, fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 99, fontFamily: FONT_FAMILY }}>{tag}</span>)}
-                </div>
-              )}
+                style={{ ...T.input, marginBottom: 8 }} />
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14, minHeight: 0 }}>
+                {extractTags(form.note).map((tag) => <span key={tag} style={{ background: "#EEF2FF", color: T.indigo, fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 99, fontFamily: FONT_FAMILY }}>{tag}</span>)}
+              </div>
 
               <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{t.date}</p>
               <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })}
@@ -1699,7 +1703,7 @@ export default function FinanceTracker() {
           <CardWrap>
             <p style={{ ...T.h2, margin: "0 0 16px", fontFamily: FONT_FAMILY }}>{t.budgetLimits}</p>
             <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{t.monthlyTotalTHB}</p>
-            <input type="number" placeholder="e.g. 30,000" value={budgets.total}
+            <input type="text" inputMode="decimal" placeholder="e.g. 30,000" value={budgets.total}
               onChange={(e) => setBudgets({ ...budgets, total: e.target.value })}
               style={{ ...T.input, fontFamily: MONO_FAMILY, fontSize: 18, fontWeight: 600, marginBottom: 16 }} />
             <p style={{ ...T.label, margin: "0 0 10px", fontFamily: FONT_FAMILY }}>{t.perCatLimits}</p>
@@ -1707,7 +1711,7 @@ export default function FinanceTracker() {
               <div key={cat.value} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 11 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 12, background: cat.pastelBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>{cat.icon}</div>
                 <span style={{ fontSize: 13, fontWeight: 500, color: "#334155", minWidth: 80, fontFamily: FONT_FAMILY }}>{cat.labelShort}</span>
-                <input type="number" placeholder={t.noLimit} value={budgets.categories?.[cat.value] || ""}
+                <input type="text" inputMode="decimal" placeholder={t.noLimit} value={budgets.categories?.[cat.value] || ""}
                   onChange={(e) => setBudgets({ ...budgets, categories: { ...budgets.categories, [cat.value]: e.target.value } })}
                   style={{ ...T.input, flex: 1, fontFamily: MONO_FAMILY, fontSize: 14, padding: "9px 13px" }} />
               </div>
@@ -1732,7 +1736,7 @@ export default function FinanceTracker() {
             {showSubForm && (
               <div style={{ padding: "16px", background: "#F8F7F4", borderRadius: 18, marginBottom: 14 }}>
                 <input placeholder={t.namePlaceholder} value={subForm.name} onChange={(e) => setSubForm({ ...subForm, name: e.target.value })} style={{ ...T.input, marginBottom: 9 }} />
-                <input type="number" placeholder={t.amountPlaceholder} value={subForm.amount} onChange={(e) => setSubForm({ ...subForm, amount: e.target.value })} style={{ ...T.input, fontFamily: MONO_FAMILY, fontSize: 16, fontWeight: 600, marginBottom: 9 }} />
+                <input type="text" inputMode="decimal" placeholder={t.amountPlaceholder} value={subForm.amount} onChange={(e) => setSubForm({ ...subForm, amount: e.target.value })} style={{ ...T.input, fontFamily: MONO_FAMILY, fontSize: 16, fontWeight: 600, marginBottom: 9 }} />
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, marginBottom: 12 }}>
                   <div>
                     <p style={{ ...T.label, margin: "0 0 6px", fontFamily: FONT_FAMILY }}>{t.category}</p>
@@ -1742,7 +1746,7 @@ export default function FinanceTracker() {
                   </div>
                   <div>
                     <p style={{ ...T.label, margin: "0 0 6px", fontFamily: FONT_FAMILY }}>{t.billingDay}</p>
-                    <input type="number" min="1" max="31" placeholder="1–31" value={subForm.day} onChange={(e) => setSubForm({ ...subForm, day: e.target.value })} style={{ ...T.input, fontFamily: MONO_FAMILY, padding: "9px 11px" }} />
+                    <input type="text" inputMode="numeric"  placeholder="1–31" value={subForm.day} onChange={(e) => setSubForm({ ...subForm, day: e.target.value })} style={{ ...T.input, fontFamily: MONO_FAMILY, padding: "9px 11px" }} />
                   </div>
                 </div>
                 <button onClick={handleAddSub} style={{ width: "100%", padding: "12px", borderRadius: 14, border: "none", background: T.indigo, color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY }}>{t.saveSubscription}</button>
