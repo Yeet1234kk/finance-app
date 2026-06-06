@@ -640,51 +640,121 @@ function LangToggle({ language, setLanguage }) {
 // ─── Text Resizer Overlay ────────────────────────────────────────────────────
 function TextSizerOverlay({ textScale, setTextScale, onClose }) {
   const pct = Math.round(textScale * 100);
+  const steps = [0.85, 0.90, 0.95, 1.00, 1.05, 1.10, 1.15, 1.20, 1.25, 1.30];
+  const stepLabels = { 0.85: "A−", 1.00: "A", 1.30: "A+" };
+  const trackPct = ((textScale - 0.85) / (1.30 - 0.85)) * 100;
+
+  const sizeLabel = pct <= 90 ? "Smaller" : pct <= 99 ? "Slightly Small" : pct === 100 ? "Standard" : pct <= 110 ? "Slightly Large" : pct <= 120 ? "Large" : "Extra Large";
+  const sizeColor = pct < 100 ? "#6366F1" : pct === 100 ? "#10B981" : "#F59E0B";
+
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 500, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,0.4)", backdropFilter: "blur(3px)" }} />
-      <div style={{ position: "relative", background: "#FFFFFF", borderRadius: "28px 28px 0 0", padding: "24px 24px 44px", width: "100%", maxWidth: 430, boxShadow: "0 -8px 40px rgba(15,23,42,0.18)", fontFamily: FONT_FAMILY }}>
-        <div style={{ width: 36, height: 4, background: "#E2E8F0", borderRadius: 99, margin: "0 auto 20px" }} />
+      <style>{`
+        @keyframes sheetUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .text-sizer-sheet { animation: sheetUp 0.32s cubic-bezier(0.32, 0.72, 0, 1) forwards; }
+        .ts-range { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 99px; outline: none; cursor: pointer; background: transparent; }
+        .ts-range::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%; background: #4F46E5; box-shadow: 0 2px 8px rgba(79,70,229,0.4); cursor: pointer; border: 3px solid #fff; transition: transform 0.15s; }
+        .ts-range::-webkit-slider-thumb:hover { transform: scale(1.15); }
+        .ts-range::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: #4F46E5; box-shadow: 0 2px 8px rgba(79,70,229,0.4); cursor: pointer; border: 3px solid #fff; }
+      `}</style>
+      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(4px)" }} />
+      <div className="text-sizer-sheet" style={{ position: "relative", background: "#FFFFFF", borderRadius: "28px 28px 0 0", padding: "8px 24px 48px", width: "100%", maxWidth: 430, boxShadow: "0 -12px 48px rgba(15,23,42,0.22)", fontFamily: FONT_FAMILY }}>
+        {/* Drag handle */}
+        <div style={{ width: 40, height: 4, background: "#E2E8F0", borderRadius: 99, margin: "12px auto 20px" }} />
+
+        {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-          <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>Adjust Text Size</p>
-          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 99, border: "none", background: "#F1F5F9", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748B" }}>
-            <X size={14} />
+          <div>
+            <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#0F172A", fontFamily: FONT_FAMILY, letterSpacing: "-0.3px" }}>Text Size</p>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: sizeColor, fontWeight: 600, fontFamily: FONT_FAMILY, transition: "color 0.2s" }}>{sizeLabel}</p>
+          </div>
+          <button onClick={onClose} style={{ width: 34, height: 34, borderRadius: 99, border: "none", background: "#F1F5F9", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748B" }}>
+            <X size={15} />
           </button>
         </div>
 
-        {/* Live preview */}
-        <div style={{ background: "#F8F7F4", borderRadius: 18, padding: "16px 18px", marginBottom: 24, border: "1.5px solid #E2E8F0" }}>
-          <p style={{ margin: "0 0 4px", fontSize: `${11 * textScale}px`, fontWeight: 500, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT_FAMILY }}>Monthly Summary</p>
-          <p style={{ margin: "0 0 12px", fontSize: `${32 * textScale}px`, fontWeight: 600, letterSpacing: "-1px", color: "#0F172A", lineHeight: 1.1, fontFamily: MONO_FAMILY }}>฿12,840</p>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#FFFFFF", borderRadius: 12 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 12, background: "#FFF8F0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: `${18 * textScale}px` }}>🍜</div>
-            <div style={{ flex: 1 }}>
-              <p style={{ margin: 0, fontSize: `${13 * textScale}px`, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>Lunch at MK</p>
-              <p style={{ margin: 0, fontSize: `${11 * textScale}px`, color: "#94A3B8", fontFamily: FONT_FAMILY }}>Food & Drink · Jun 6</p>
+        {/* Live preview card */}
+        <div style={{ background: "#F8F7F4", borderRadius: 20, padding: "16px", marginBottom: 24, border: "1.5px solid #E8E6E2", overflow: "hidden" }}>
+          {/* Preview label */}
+          <p style={{ margin: "0 0 10px", fontSize: 10, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: FONT_FAMILY }}>Live Preview</p>
+
+          {/* Summary row */}
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
+            <p style={{ margin: 0, fontSize: `${11 * textScale}px`, fontWeight: 500, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT_FAMILY, transition: "font-size 0.15s" }}>Monthly Summary</p>
+            <span style={{ fontSize: `${10 * textScale}px`, fontWeight: 600, background: "#EEF2FF", color: "#4F46E5", padding: "2px 7px", borderRadius: 99, fontFamily: FONT_FAMILY, transition: "font-size 0.15s" }}>Jun 2025</span>
+          </div>
+          <p style={{ margin: "0 0 10px", fontSize: `${28 * textScale}px`, fontWeight: 700, letterSpacing: "-1.5px", color: "#0F172A", lineHeight: 1.05, fontFamily: MONO_FAMILY, transition: "font-size 0.15s" }}>฿12,840</p>
+
+          {/* Budget bar */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+              <span style={{ fontSize: `${10 * textScale}px`, color: "#94A3B8", fontFamily: FONT_FAMILY, transition: "font-size 0.15s" }}>Budget used</span>
+              <span style={{ fontSize: `${10 * textScale}px`, fontWeight: 600, color: "#F59E0B", fontFamily: MONO_FAMILY, transition: "font-size 0.15s" }}>64%</span>
             </div>
-            <span style={{ fontSize: `${14 * textScale}px`, fontWeight: 600, color: "#EF4444", fontFamily: MONO_FAMILY }}>−฿320</span>
+            <div style={{ height: 5, background: "#FEF3C7", borderRadius: 99, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: "64%", background: "#F59E0B", borderRadius: 99 }} />
+            </div>
+          </div>
+
+          {/* Transaction item */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#FFFFFF", borderRadius: 14, boxShadow: "0 2px 8px rgba(15,23,42,0.05)" }}>
+            <div style={{ width: `${36 * Math.min(textScale, 1.15)}px`, height: `${36 * Math.min(textScale, 1.15)}px`, minWidth: 28, borderRadius: 11, background: "#FFF8F0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: `${17 * textScale}px`, flexShrink: 0, transition: "all 0.15s" }}>🍜</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: `${13 * textScale}px`, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY, transition: "font-size 0.15s", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Lunch at MK</p>
+              <p style={{ margin: "1px 0 0", fontSize: `${11 * textScale}px`, color: "#94A3B8", fontFamily: FONT_FAMILY, transition: "font-size 0.15s" }}>Food & Drink · Jun 6</p>
+            </div>
+            <span style={{ fontSize: `${14 * textScale}px`, fontWeight: 700, color: "#EF4444", fontFamily: MONO_FAMILY, flexShrink: 0, transition: "font-size 0.15s" }}>−฿320</span>
           </div>
         </div>
 
-        {/* Slider */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-          <Type size={14} color="#94A3B8" />
-          <input
-            type="range" min={0.85} max={1.30} step={0.05}
-            value={textScale}
-            onChange={(e) => setTextScale(parseFloat(e.target.value))}
-            style={{ flex: 1, accentColor: "#4F46E5", height: 4, cursor: "pointer" }}
-          />
-          <Type size={20} color="#94A3B8" />
-        </div>
-        <p style={{ margin: 0, textAlign: "center", fontSize: 13, fontWeight: 600, color: "#4F46E5", fontFamily: FONT_FAMILY }}>{pct}% of standard size</p>
+        {/* Slider section */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 8 }}>
+            <Type size={13} color="#CBD5E1" strokeWidth={2.5} />
+            <div style={{ flex: 1, position: "relative" }}>
+              {/* Custom track background */}
+              <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 6, marginTop: -3, borderRadius: 99, background: "#F1F5F9", pointerEvents: "none" }} />
+              <div style={{ position: "absolute", top: "50%", left: 0, width: `${trackPct}%`, height: 6, marginTop: -3, borderRadius: 99, background: "linear-gradient(90deg, #818CF8, #4F46E5)", pointerEvents: "none", transition: "width 0.1s" }} />
+              <input
+                type="range" min={0.85} max={1.30} step={0.05}
+                value={textScale}
+                onChange={(e) => setTextScale(parseFloat(e.target.value))}
+                className="ts-range"
+                style={{ position: "relative", zIndex: 1 }}
+              />
+            </div>
+            <Type size={20} color="#4F46E5" strokeWidth={2.5} />
+          </div>
 
-        {/* Reset */}
-        {textScale !== 1 && (
-          <button onClick={() => setTextScale(1)} style={{ display: "block", margin: "14px auto 0", background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 500, color: "#94A3B8", fontFamily: FONT_FAMILY, textDecoration: "underline" }}>
-            Reset to default
-          </button>
-        )}
+          {/* Step dots */}
+          <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: 27, paddingRight: 34 }}>
+            {steps.map((s) => {
+              const isActive = Math.abs(textScale - s) < 0.001;
+              const isPassed = textScale >= s;
+              return (
+                <button key={s} onClick={() => setTextScale(s)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, background: "none", border: "none", cursor: "pointer", padding: "2px 0" }}>
+                  <div style={{ width: isActive ? 8 : 5, height: isActive ? 8 : 5, borderRadius: "50%", background: isActive ? "#4F46E5" : isPassed ? "#818CF8" : "#E2E8F0", transition: "all 0.15s", boxShadow: isActive ? "0 0 0 3px rgba(79,70,229,0.2)" : "none" }} />
+                  {stepLabels[s] && <span style={{ fontSize: 9, fontWeight: 700, color: isActive ? "#4F46E5" : "#CBD5E1", fontFamily: FONT_FAMILY, transition: "color 0.15s" }}>{stepLabels[s]}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Percentage badge + reset */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ background: "#EEF2FF", borderRadius: 99, padding: "6px 14px" }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#4F46E5", fontFamily: MONO_FAMILY }}>{pct}%</span>
+            </div>
+            <span style={{ fontSize: 12, color: "#94A3B8", fontFamily: FONT_FAMILY }}>of standard size</span>
+          </div>
+          {textScale !== 1 && (
+            <button onClick={() => setTextScale(1)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#F8F7F4", border: "1.5px solid #E2E8F0", cursor: "pointer", padding: "7px 14px", borderRadius: 99, fontSize: 12, fontWeight: 600, color: "#64748B", fontFamily: FONT_FAMILY, transition: "all 0.15s" }}>
+              Reset
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
