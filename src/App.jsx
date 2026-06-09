@@ -1590,7 +1590,7 @@ function TextSizerOverlay({ textScale, setTextScale, onClose }) {
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#FFFFFF", borderRadius: 14, boxShadow: "0 2px 8px rgba(15,23,42,0.05)" }}>
             <div style={{ width: `${36 * Math.min(textScale, 1.15)}px`, height: `${36 * Math.min(textScale, 1.15)}px`, minWidth: 28, borderRadius: 11, background: "#FFF8F0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: `${17 * textScale}px`, flexShrink: 0, transition: "all 0.15s" }}>🍜</div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: `${13 * textScale}px`, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY, transition: "font-size 0.15s", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Lunch at MK</p>
+              <p style={{ margin: 0, fontSize: `${13 * textScale}px`, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY, transition: "font-size 0.15s", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Your Expenses</p>
               <p style={{ margin: "1px 0 0", fontSize: `${11 * textScale}px`, color: "#94A3B8", fontFamily: FONT_FAMILY, transition: "font-size 0.15s" }}>Food & Drink · Jun 6</p>
             </div>
             <span style={{ fontSize: `${14 * textScale}px`, fontWeight: 700, color: "#EF4444", fontFamily: MONO_FAMILY, flexShrink: 0, transition: "font-size 0.15s" }}>−฿320</span>
