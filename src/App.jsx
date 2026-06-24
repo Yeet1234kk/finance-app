@@ -1142,9 +1142,9 @@ const getIncomeCategory = (val, lang = "EN") =>
   getIncomeCategoriesForLang(lang).find((c) => c.value === val) || null;
 
 const getCat       = (val, lang = "EN") => getCategoriesForLang(lang).find((c) => c.value === val) || getCategoriesForLang(lang)[4];
+const uid          = () => (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `id_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 const todayStr     = () => new Date().toISOString().slice(0, 10);
 const currentMonth = () => new Date().toISOString().slice(0, 7);
-const todayDay     = () => new Date().getDate();
 const fmt          = (n) => new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(n);
 const fmtDate      = (d) => new Date(d + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 const extractTags  = (note) => (note.match(/#\w+/g) || []).map((t) => t.toLowerCase());
@@ -1208,7 +1208,7 @@ function YearlySummary({ transactions, language, yearlyYear, setYearlyYear, setS
     const mIdx = selectedMonth;
     const mKey = monthKey(yearlyYear, mIdx);
     const mName = `${getMonthName(mIdx, language)} ${yearlyYear}`;
-    const mTxns = transactions.filter((tx) => tx.date.startsWith(mKey)).sort((a, b) => new Date(b.date) - new Date(a.date));
+    const mTxns = transactions.filter((tx) => tx.date.startsWith(mKey) && tx.type !== "income").sort((a, b) => new Date(b.date) - new Date(a.date));
     const mTotal = mTxns.reduce((s, tx) => s + tx.amount, 0);
     const mCatTotals = {};
     mTxns.forEach((tx) => { mCatTotals[tx.category] = (mCatTotals[tx.category] || 0) + tx.amount; });
@@ -1653,7 +1653,13 @@ function TextSizerOverlay({ textScale, setTextScale, onClose }) {
 export default function FinanceTracker() {
   const [textScale,      setTextScale]      = useState(() => lsGet("ft_text_scale", 1));
   const [showTextSizer,  setShowTextSizer]  = useState(false);
-  const [transactions,  setTransactions]  = useState(() => lsGet("ft_txns",    []));
+  const [transactions,  setTransactions]  = useState(() => {
+    const raw = lsGet("ft_txns", []);
+    // Drop malformed rows so one bad entry can't crash every reduce/getCat downstream.
+    return Array.isArray(raw)
+      ? raw.filter((tx) => tx && typeof tx.amount === "number" && !Number.isNaN(tx.amount) && typeof tx.date === "string" && typeof tx.category === "string")
+      : [];
+  });
   const [subscriptions, setSubscriptions] = useState(() => lsGet("ft_subs",    []));
   const [budgets,       setBudgets]       = useState(() => lsGet("ft_budgets", { total: "", categories: {} }));
   const [tab,           setTab]           = useState("home");
@@ -1713,11 +1719,15 @@ export default function FinanceTracker() {
 
   useEffect(() => {
     if (!subscriptions.length) return;
-    const day = todayDay(), month = currentMonth(), injected = [];
+    const now = new Date();
+    const day = now.getDate(), month = currentMonth(), injected = [];
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     subscriptions.forEach((sub) => {
-      if (parseInt(sub.day) !== day) return;
+      // Clamp the billing day to the month length so e.g. day 31 still charges on Feb 28.
+      const billingDay = Math.min(parseInt(sub.day) || 1, lastDayOfMonth);
+      if (billingDay !== day) return;
       const already = transactions.some((tx) => tx.recurringId === sub.id && tx.date.startsWith(month));
-      if (!already) injected.push({ id: Date.now() + Math.random(), amount: parseFloat(sub.amount), category: sub.category, note: sub.name + " (auto)", date: todayStr(), recurringId: sub.id });
+      if (!already) injected.push({ id: uid(), amount: parseFloat(sub.amount), category: sub.category, note: sub.name + " (auto)", date: todayStr(), recurringId: sub.id });
     });
     if (injected.length) { setTransactions((p) => [...injected, ...p]); showToast(t.autoAdded(injected.length)); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1785,7 +1795,7 @@ export default function FinanceTracker() {
       setEditingTx(null);
     } else {
       // ADD new
-      setTransactions((p) => [{ id: Date.now(), type: formTxType, amount: net, category: form.category, note: form.note.trim(), date: form.date, tags: extractTags(form.note), split: formTxType === "expense" ? form.split : false, originalAmount: parseFloat(form.amount), reimbursed: (formTxType === "expense" && form.split) ? parseFloat(form.reimbursed)||0 : 0 }, ...p]);
+      setTransactions((p) => [{ id: uid(), type: formTxType, amount: net, category: form.category, note: form.note.trim(), date: form.date, tags: extractTags(form.note), split: formTxType === "expense" ? form.split : false, originalAmount: parseFloat(form.amount), reimbursed: (formTxType === "expense" && form.split) ? parseFloat(form.reimbursed)||0 : 0 }, ...p]);
       showToast("✓ Transaction saved");
     }
     setForm(blankForm); setShowForm(false); setError(""); setFormPrefilledMonth(null);
@@ -1818,18 +1828,24 @@ export default function FinanceTracker() {
 
   // CSV Export
   const handleExportCSV = () => {
+    // Quote every field and neutralise CSV-injection (a leading =,+,-,@ is read as a formula by Excel/Sheets).
+    const esc = (v) => {
+      let s = String(v ?? "");
+      if (/^[=+\-@]/.test(s)) s = "'" + s;
+      return `"${s.replace(/"/g, '""')}"`;
+    };
     const header = ["Date","Type","Category","Note","Amount","Split","Reimbursed","Tags"];
     const rows = [...transactions].sort((a,b) => new Date(b.date)-new Date(a.date)).map((tx) => [
       tx.date,
       tx.type || "expense",
       tx.category,
-      `"${(tx.note||"").replace(/"/g,'""')}"`,
+      tx.note || "",
       tx.amount,
       tx.split ? "yes" : "no",
       tx.reimbursed || 0,
       (tx.tags||[]).join(" "),
     ]);
-    const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
+    const csv = [header, ...rows].map((r) => r.map(esc).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -1840,7 +1856,7 @@ export default function FinanceTracker() {
 
   const handleAddSub = () => {
     if (!subForm.name || !subForm.amount || parseFloat(subForm.amount) <= 0) return;
-    setSubscriptions((p) => [...p, { ...subForm, id: Date.now(), amount: parseFloat(subForm.amount) }]);
+    setSubscriptions((p) => [...p, { ...subForm, id: uid(), amount: parseFloat(subForm.amount) }]);
     setSubForm(blankSub); setShowSubForm(false);
   };
 
@@ -1873,7 +1889,8 @@ export default function FinanceTracker() {
   // ── Yearly Summary ─────────────────────────────────────────────────────────
   const computeYearlyData = (year) => {
     const yearStr  = String(year);
-    const yearTxns = transactions.filter((tx) => tx.date.startsWith(yearStr));
+    // Yearly Summary is a *spending* report — exclude income so totals/avg/biggest/charts aren't inflated.
+    const yearTxns = transactions.filter((tx) => tx.date.startsWith(yearStr) && tx.type !== "income");
     const totalSpent = yearTxns.reduce((s, tx) => s + tx.amount, 0);
     const now = new Date();
     const isCurrentYear = year === now.getFullYear();
