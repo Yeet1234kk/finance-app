@@ -2225,18 +2225,14 @@ export default function FinanceTracker() {
 
       {/* ══ HERO HEADER ══ */}
       <div style={{ padding: "32px 22px 24px", background: T.pageBg }}>
-        {/* Top bar: date + lang toggle + year in review */}
+        {/* Top bar: date + year in review (language & text size now live in Settings) */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <p style={{ ...T.muted, margin: 0, fontWeight: 500, fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: FONT_FAMILY }}>
               {new Date().toLocaleDateString(language === "TH" ? "th-TH" : "en-US", { month: "long", year: "numeric" })}
             </p>
-            <LangToggle language={language} setLanguage={setLanguage} />
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => setShowTextSizer(true)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#FFFFFF", border: "1.5px solid #E2E8F0", cursor: "pointer", padding: "7px 12px", borderRadius: 99, fontFamily: FONT_FAMILY, fontSize: 12, fontWeight: 600, color: "#475569", boxShadow: "0 1px 4px rgba(15,23,42,0.07)" }}>
-            <Type size={13} color="#4F46E5" /> Aa
-          </button>
           <button onClick={() => { setYearlyYear(new Date().getFullYear()); setShowYearlySummary(true); }} style={{
             display: "flex", alignItems: "center", gap: 6,
             background: "#0F172A", border: "none", cursor: "pointer",
@@ -2749,6 +2745,38 @@ export default function FinanceTracker() {
       {/* ══ SETTINGS ══ */}
       {tab === "settings" && (
         <div style={{ padding: "0 16px" }}>
+          {/* Appearance & Language */}
+          <CardWrap>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+              <Settings size={16} color={T.indigo} />
+              <p style={{ ...T.h2, margin: 0, fontFamily: FONT_FAMILY }}>Appearance & Language</p>
+            </div>
+            {/* Language row */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 12, background: T.indigoLight, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Globe size={17} color={T.indigo} /></div>
+                <div>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>Language</p>
+                  <p style={{ margin: 0, fontSize: 12, color: "#94A3B8", fontFamily: FONT_FAMILY }}>{language === "EN" ? "English" : "ภาษาไทย"}</p>
+                </div>
+              </div>
+              <LangToggle language={language} setLanguage={setLanguage} />
+            </div>
+            {/* Text size row */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderTop: "1px solid #F1F5F9" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 12, background: T.indigoLight, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Type size={17} color={T.indigo} /></div>
+                <div>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>Text Size</p>
+                  <p style={{ margin: 0, fontSize: 12, color: "#94A3B8", fontFamily: FONT_FAMILY }}>{Math.round(textScale * 100)}% of standard</p>
+                </div>
+              </div>
+              <button onClick={() => setShowTextSizer(true)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#FFFFFF", border: "1.5px solid #E2E8F0", cursor: "pointer", padding: "8px 14px", borderRadius: 99, fontFamily: FONT_FAMILY, fontSize: 12, fontWeight: 600, color: "#475569", boxShadow: "0 1px 4px rgba(15,23,42,0.07)" }}>
+                <Type size={13} color={T.indigo} /> Adjust
+              </button>
+            </div>
+          </CardWrap>
+
           <CardWrap>
             <p style={{ ...T.h2, margin: "0 0 16px", fontFamily: FONT_FAMILY }}>{t.budgetLimits}</p>
             <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{t.monthlyTotalTHB}</p>
