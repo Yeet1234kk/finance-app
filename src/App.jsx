@@ -1106,17 +1106,6 @@ const CATEGORIES_BASE = [
   { value: "Other",     pastelBg: "#F8FAFC", pastelText: "#475569", bar: "#94A3B8", icon: "📦" },
 ];
 
-const getCategoriesForLang = (lang) => {
-  const t = TRANSLATIONS[lang];
-  return [
-    { ...CATEGORIES_BASE[0], label: t.catFood,     labelShort: t.catFoodShort },
-    { ...CATEGORIES_BASE[1], label: t.catTransport, labelShort: t.catTransportShort },
-    { ...CATEGORIES_BASE[2], label: t.catShopping,  labelShort: t.catShoppingShort },
-    { ...CATEGORIES_BASE[3], label: t.catBills,     labelShort: t.catBillsShort },
-    { ...CATEGORIES_BASE[4], label: t.catOther,     labelShort: t.catOtherShort },
-  ];
-};
-
 const INCOME_CATEGORIES = [
   { value: "Salary",     label: "Salary",       labelShort: "Salary",     icon: "💼", pastelBg: "#F0FDF4", pastelText: "#15803D", bar: "#22C55E" },
   { value: "Gift",       label: "Gift",          labelShort: "Gift",       icon: "🎁", pastelBg: "#FFF0F6", pastelText: "#BE185D", bar: "#EC4899" },
@@ -1125,23 +1114,46 @@ const INCOME_CATEGORIES = [
   { value: "OtherIncome",label: "Other Income",  labelShort: "Other",      icon: "💵", pastelBg: "#F8FAFC", pastelText: "#475569", bar: "#94A3B8" },
 ];
 
-const getIncomeCategoriesForLang = (lang) => {
-  if (lang === "TH") {
-    return [
-      { ...INCOME_CATEGORIES[0], label: "เงินเดือน",    labelShort: "เงินเดือน" },
-      { ...INCOME_CATEGORIES[1], label: "ของขวัญ",      labelShort: "ของขวัญ" },
-      { ...INCOME_CATEGORIES[2], label: "การลงทุน",     labelShort: "ลงทุน" },
-      { ...INCOME_CATEGORIES[3], label: "ฟรีแลนซ์",     labelShort: "ฟรีแลนซ์" },
-      { ...INCOME_CATEGORIES[4], label: "รายได้อื่นๆ",  labelShort: "อื่นๆ" },
-    ];
-  }
-  return INCOME_CATEGORIES;
-};
+// ─── Editable category system ────────────────────────────────────────────────
+// Categories are user-editable state. Built-ins carry i18n maps so EN/TH keeps
+// working until the user renames them; custom categories store a plain label.
+const _incTH = { Salary: ["เงินเดือน","เงินเดือน"], Gift: ["ของขวัญ","ของขวัญ"], Investment: ["การลงทุน","ลงทุน"], Freelance: ["ฟรีแลนซ์","ฟรีแลนซ์"], OtherIncome: ["รายได้อื่นๆ","อื่นๆ"] };
+
+const defaultExpCats = () => CATEGORIES_BASE.map((c) => ({
+  ...c, builtin: true,
+  label: TRANSLATIONS.EN["cat" + c.value], labelShort: TRANSLATIONS.EN["cat" + c.value + "Short"],
+  i18n:      { EN: TRANSLATIONS.EN["cat" + c.value],          TH: TRANSLATIONS.TH["cat" + c.value] },
+  i18nShort: { EN: TRANSLATIONS.EN["cat" + c.value + "Short"], TH: TRANSLATIONS.TH["cat" + c.value + "Short"] },
+}));
+const defaultIncCats = () => INCOME_CATEGORIES.map((c) => ({
+  ...c, builtin: true,
+  i18n:      { EN: c.label,      TH: _incTH[c.value]?.[0] || c.label },
+  i18nShort: { EN: c.labelShort, TH: _incTH[c.value]?.[1] || c.labelShort },
+}));
+
+// Live registry mirrored from React state so the module-level helpers below
+// (used by many components) always see the current categories without prop-drilling.
+let CAT_REGISTRY = { exp: defaultExpCats(), inc: defaultIncCats() };
+const setCatRegistry = (next) => { CAT_REGISTRY = next; };
+
+const _applyLang = (c, lang) => ({
+  ...c,
+  label:      c.i18n      ? (c.i18n[lang]      || c.label)      : c.label,
+  labelShort: c.i18nShort ? (c.i18nShort[lang] || c.labelShort) : c.labelShort,
+});
+
+const UNCATEGORIZED = { value: "Uncategorized", icon: "🗂️", pastelBg: "#F1F5F9", pastelText: "#64748B", bar: "#94A3B8", label: "Uncategorized", labelShort: "Other" };
+
+const getCategoriesForLang       = (lang) => CAT_REGISTRY.exp.map((c) => _applyLang(c, lang));
+const getIncomeCategoriesForLang = (lang) => CAT_REGISTRY.inc.map((c) => _applyLang(c, lang));
 
 const getIncomeCategory = (val, lang = "EN") =>
   getIncomeCategoriesForLang(lang).find((c) => c.value === val) || null;
 
-const getCat       = (val, lang = "EN") => getCategoriesForLang(lang).find((c) => c.value === val) || getCategoriesForLang(lang)[4];
+const getCat = (val, lang = "EN") =>
+  getCategoriesForLang(lang).find((c) => c.value === val)
+  || getIncomeCategoriesForLang(lang).find((c) => c.value === val)
+  || { ...UNCATEGORIZED, label: TRANSLATIONS[lang]?.catOther || UNCATEGORIZED.label };
 const uid          = () => (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `id_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 const todayStr     = () => new Date().toISOString().slice(0, 10);
 const currentMonth = () => new Date().toISOString().slice(0, 7);
@@ -1650,6 +1662,71 @@ function TextSizerOverlay({ textScale, setTextScale, onClose }) {
   );
 }
 
+// ─── Category add/edit modal ─────────────────────────────────────────────────
+const CAT_EMOJIS = ["🍜","🍔","☕","🛒","🚇","⛽","🏠","💡","🎁","🎉","🎮","🎬","💊","🏥","✈️","🏖️","👕","💄","📚","🐱","🐶","💼","📈","💻","💵","🎓","🏋️","⚽","🎵","🌿","🔧","📦"];
+const CAT_COLORS = ["#FB923C","#60A5FA","#A78BFA","#FACC15","#F87171","#34D399","#22C55E","#EC4899","#3B82F6","#8B5CF6","#14B8A6","#94A3B8"];
+
+function CategoryForm({ type, initial, onSave, onClose }) {
+  const isEdit = !!initial;
+  const [name,  setName]  = useState(initial?.label || "");
+  const [icon,  setIcon]  = useState(initial?.icon || CAT_EMOJIS[0]);
+  const [color, setColor] = useState(initial?.bar || CAT_COLORS[0]);
+  const [error, setError] = useState("");
+
+  const save = () => {
+    const trimmed = name.trim();
+    if (!trimmed) { setError("Enter a category name"); return; }
+    const cat = {
+      value: initial?.value || ("c_" + _spUid()),
+      label: trimmed, labelShort: trimmed,
+      icon, bar: color, pastelBg: color + "22", pastelText: color,
+      custom: true, // editing strips i18n so the chosen name sticks in both languages
+    };
+    onSave(cat);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 700, display: "flex", alignItems: "flex-end", justifyContent: "center", fontFamily: FONT_FAMILY }}>
+      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(4px)" }} />
+      <div style={{ position: "relative", background: "#FFFFFF", borderRadius: "28px 28px 0 0", padding: "8px 22px 40px", width: "100%", maxWidth: 430, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 -12px 48px rgba(15,23,42,0.22)", animation: "spSlideUp 0.32s cubic-bezier(0.32,0.72,0,1)" }}>
+        <div style={{ width: 40, height: 4, background: "#E2E8F0", borderRadius: 99, margin: "12px auto 18px" }} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+          <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#0F172A", fontFamily: FONT_FAMILY }}>{isEdit ? "Edit Category" : "New Category"} <span style={{ fontSize: 12, fontWeight: 600, color: type === "income" ? "#15803D" : T.indigo }}>· {type === "income" ? "Income" : "Expense"}</span></p>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 99, border: "none", background: "#F1F5F9", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748B" }}><X size={15} /></button>
+        </div>
+
+        {/* Preview chip */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderRadius: 18, background: color + "18", border: `1.5px solid ${color}55`, marginBottom: 18 }}>
+          <div style={{ width: 46, height: 46, borderRadius: 14, background: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>{icon}</div>
+          <span style={{ fontSize: 16, fontWeight: 700, color, fontFamily: FONT_FAMILY }}>{name.trim() || "Category name"}</span>
+        </div>
+
+        <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>Name</p>
+        <input value={name} onChange={(e) => { setName(e.target.value); setError(""); }} placeholder="e.g. Coffee" autoFocus style={{ ...T.input, marginBottom: 16 }} />
+
+        <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>Icon</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 6, marginBottom: 16 }}>
+          {CAT_EMOJIS.map((e) => (
+            <button key={e} onClick={() => setIcon(e)} style={{ aspectRatio: "1", borderRadius: 12, border: `2px solid ${icon === e ? color : "transparent"}`, background: icon === e ? color + "18" : "#F8F7F4", fontSize: 19, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>{e}</button>
+          ))}
+        </div>
+
+        <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>Color</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginBottom: 20 }}>
+          {CAT_COLORS.map((c) => (
+            <button key={c} onClick={() => setColor(c)} style={{ width: 34, height: 34, borderRadius: 99, background: c, border: color === c ? "3px solid #fff" : "3px solid transparent", outline: color === c ? `2px solid ${c}` : "none", cursor: "pointer" }} />
+          ))}
+        </div>
+
+        {error && <p style={{ color: "#EF4444", fontSize: 13, marginBottom: 12, fontWeight: 500, fontFamily: FONT_FAMILY }}>{error}</p>}
+        <button onClick={save} style={{ width: "100%", padding: "15px", borderRadius: 16, border: "none", background: T.indigo, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT_FAMILY, boxShadow: "0 8px 24px rgba(79,70,229,0.28)" }}>
+          {isEdit ? "Save Changes" : "Add Category"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function FinanceTracker() {
   const [textScale,      setTextScale]      = useState(() => lsGet("ft_text_scale", 1));
   const [showTextSizer,  setShowTextSizer]  = useState(false);
@@ -1662,6 +1739,14 @@ export default function FinanceTracker() {
   });
   const [subscriptions, setSubscriptions] = useState(() => lsGet("ft_subs",    []));
   const [budgets,       setBudgets]       = useState(() => lsGet("ft_budgets", { total: "", categories: {} }));
+  const [cats,          setCats]          = useState(() => ({
+    exp: lsGet("ft_cats_exp", null) || defaultExpCats(),
+    inc: lsGet("ft_cats_inc", null) || defaultIncCats(),
+  }));
+  // Category management UI state
+  const [catModal,      setCatModal]      = useState(null); // { type, cat } | null
+  const [catDeleteTgt,  setCatDeleteTgt]  = useState(null); // { type, cat, count } | null
+  setCatRegistry(cats); // mirror to module-level helpers every render (idempotent)
   const [tab,           setTab]           = useState("home");
   const [showForm,      setShowForm]      = useState(false);
   const [showSubForm,   setShowSubForm]   = useState(false);
@@ -1716,6 +1801,35 @@ export default function FinanceTracker() {
   useEffect(() => { lsSet("ft_text_scale", textScale); document.documentElement.style.setProperty("--app-text-scale", textScale); }, [textScale]);
   useEffect(() => { document.documentElement.style.setProperty("--app-text-scale", textScale); }, []);
   useEffect(() => lsSet("ft_dismissed_alerts", dismissedAlerts), [dismissedAlerts]);
+  useEffect(() => lsSet("ft_cats_exp", cats.exp), [cats.exp]);
+  useEffect(() => lsSet("ft_cats_inc", cats.inc), [cats.inc]);
+
+  // ── Category CRUD ──────────────────────────────────────────────────────────
+  const saveCategory = (type, cat) => {
+    const key = type === "income" ? "inc" : "exp";
+    setCats((p) => {
+      const exists = p[key].some((c) => c.value === cat.value);
+      return { ...p, [key]: exists ? p[key].map((c) => c.value === cat.value ? cat : c) : [...p[key], cat] };
+    });
+    setCatModal(null);
+    showToast(catModal?.cat ? "✓ Category updated" : "✓ Category added");
+  };
+  const countCatTxns = (type, value) =>
+    transactions.filter((tx) => (type === "income" ? tx.type === "income" : tx.type !== "income") && tx.category === value).length;
+  const deleteCategory = (type, value, mode) => {
+    const key = type === "income" ? "inc" : "exp";
+    const isType = (tx) => (type === "income" ? tx.type === "income" : tx.type !== "income") && tx.category === value;
+    setTransactions((prev) => mode === "delete"
+      ? prev.filter((tx) => !isType(tx))
+      : prev.map((tx) => isType(tx) ? { ...tx, category: "Uncategorized" } : tx));
+    setCats((p) => {
+      let list = p[key].filter((c) => c.value !== value);
+      if (mode === "reassign" && !list.some((c) => c.value === "Uncategorized")) list = [...list, { ...UNCATEGORIZED }];
+      return { ...p, [key]: list };
+    });
+    setCatDeleteTgt(null);
+    showToast(mode === "delete" ? "Category & its transactions removed" : "Category removed, transactions kept");
+  };
 
   useEffect(() => {
     if (!subscriptions.length) return;
@@ -2186,6 +2300,37 @@ export default function FinanceTracker() {
       })()}
 
       {showTextSizer && <TextSizerOverlay textScale={textScale} setTextScale={setTextScale} onClose={() => setShowTextSizer(false)} />}
+
+      {/* Category add/edit modal */}
+      {catModal && (
+        <CategoryForm type={catModal.type} initial={catModal.cat} onSave={(cat) => saveCategory(catModal.type, cat)} onClose={() => setCatModal(null)} />
+      )}
+
+      {/* Safe-delete confirm (category has transactions) */}
+      {catDeleteTgt && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 720, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_FAMILY, padding: 24 }}>
+          <div onClick={() => setCatDeleteTgt(null)} style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,0.5)", backdropFilter: "blur(4px)" }} />
+          <div style={{ position: "relative", background: "#FFFFFF", borderRadius: 24, padding: "24px 22px", width: "100%", maxWidth: 360, boxShadow: "0 20px 60px rgba(15,23,42,0.3)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 12 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 14, background: "#FFF1F2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{catDeleteTgt.cat.icon}</div>
+              <div>
+                <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0F172A", fontFamily: FONT_FAMILY }}>Delete "{catDeleteTgt.cat.label}"?</p>
+                <p style={{ margin: 0, fontSize: 12, color: "#94A3B8", fontFamily: FONT_FAMILY }}>{catDeleteTgt.count} transaction{catDeleteTgt.count !== 1 ? "s" : ""} use this category</p>
+              </div>
+            </div>
+            <p style={{ ...T.muted, margin: "0 0 16px", fontSize: 13, fontFamily: FONT_FAMILY }}>Choose what happens to those transactions:</p>
+            <button onClick={() => deleteCategory(catDeleteTgt.type, catDeleteTgt.cat.value, "reassign")} style={{ width: "100%", padding: "13px", borderRadius: 14, border: "1.5px solid #E2E8F0", background: "#FFFFFF", color: "#0F172A", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY, marginBottom: 9, textAlign: "left", display: "flex", flexDirection: "column", gap: 2 }}>
+              <span>Keep transactions</span>
+              <span style={{ fontSize: 11, fontWeight: 400, color: "#94A3B8" }}>Move them to "Uncategorized"</span>
+            </button>
+            <button onClick={() => deleteCategory(catDeleteTgt.type, catDeleteTgt.cat.value, "delete")} style={{ width: "100%", padding: "13px", borderRadius: 14, border: "none", background: "#FFF1F2", color: "#BE123C", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT_FAMILY, marginBottom: 9, textAlign: "left", display: "flex", flexDirection: "column", gap: 2 }}>
+              <span>Delete everything</span>
+              <span style={{ fontSize: 11, fontWeight: 400, color: "#FB7185" }}>Remove the category and its {catDeleteTgt.count} transaction{catDeleteTgt.count !== 1 ? "s" : ""}</span>
+            </button>
+            <button onClick={() => setCatDeleteTgt(null)} style={{ width: "100%", padding: "11px", borderRadius: 14, border: "none", background: "#F1F5F9", color: "#64748B", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY }}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (
@@ -2775,6 +2920,31 @@ export default function FinanceTracker() {
                 <Type size={13} color={T.indigo} /> Adjust
               </button>
             </div>
+          </CardWrap>
+
+          {/* Manage Categories */}
+          <CardWrap>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <BookOpen size={16} color={T.indigo} />
+              <p style={{ ...T.h2, margin: 0, fontFamily: FONT_FAMILY }}>Categories</p>
+            </div>
+            <p style={{ ...T.muted, margin: "0 0 14px", fontSize: 12, fontFamily: FONT_FAMILY }}>Add, rename, recolor or remove categories. Changes apply everywhere instantly.</p>
+            {[{ type: "expense", list: CATEGORIES, label: "Expense" }, { type: "income", list: INCOME_CATS, label: "Income" }].map(({ type, list, label }) => (
+              <div key={type} style={{ marginBottom: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: type === "income" ? "#15803D" : T.indigo, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: FONT_FAMILY }}>{label}</span>
+                  <button onClick={() => setCatModal({ type, cat: null })} style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 11px", borderRadius: 99, border: "none", cursor: "pointer", fontFamily: FONT_FAMILY, fontWeight: 600, fontSize: 12, background: T.indigoLight, color: T.indigo }}><Plus size={12} /> Add</button>
+                </div>
+                {list.map((cat) => (
+                  <div key={cat.value} style={{ display: "flex", alignItems: "center", gap: 11, padding: "8px 0", borderTop: "1px solid #F1F5F9" }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 11, background: cat.pastelBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{cat.icon}</div>
+                    <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{cat.label}</span>
+                    <button onClick={() => setCatModal({ type, cat })} style={{ background: "none", border: "none", cursor: "pointer", color: "#94A3B8", padding: 6 }}><Pencil size={14} /></button>
+                    <button onClick={() => { const count = countCatTxns(type, cat.value); if (count > 0) setCatDeleteTgt({ type, cat, count }); else deleteCategory(type, cat.value, "delete"); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#CBD5E1", padding: 6 }}><Trash2 size={14} /></button>
+                  </div>
+                ))}
+              </div>
+            ))}
           </CardWrap>
 
           <CardWrap>
