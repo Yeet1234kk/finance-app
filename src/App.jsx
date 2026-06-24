@@ -1818,6 +1818,7 @@ export default function FinanceTracker() {
   // Category management UI state
   const [showQuickAdd,  setShowQuickAdd]  = useState(false);
   const [analyticsCat,  setAnalyticsCat]  = useState(null); // drill-down category in Analytics tab
+  const [expandedHomeCats, setExpandedHomeCats] = useState({}); // collapsible category sections on Home
   const [catModal,      setCatModal]      = useState(null); // { type, cat } | null
   const [catDeleteTgt,  setCatDeleteTgt]  = useState(null); // { type, cat, count } | null
   setCatRegistry(cats); // mirror to module-level helpers every render (idempotent)
@@ -2040,6 +2041,19 @@ export default function FinanceTracker() {
     a.href = url; a.download = `transactions_${new Date().toISOString().slice(0,10)}.csv`;
     a.click(); URL.revokeObjectURL(url);
     showToast("✓ CSV exported");
+  };
+
+  // Open the full transaction form with a category pre-selected (used from drill-down "add")
+  const openAddForm = (category, type = "expense") => {
+    setEditingTx(null);
+    setFormTxType(type);
+    setForm({ ...blankForm, category });
+    setFormPrefilledMonth(null);
+    setShowQuickAdd(false);
+    setShowForm(true);
+    setTab("home");
+    setError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const quickSave = ({ category, amount, note }) => {
@@ -2649,34 +2663,64 @@ export default function FinanceTracker() {
             <div style={{ textAlign: "center", padding: "32px 20px" }}>
               <p style={{ ...T.muted, margin: 0, fontFamily: FONT_FAMILY }}>No results for "{searchQuery}"</p>
             </div>
-          ) : searchFiltered([...monthTxns].sort((a, b) => new Date(b.date) - new Date(a.date))).map((tx) => {
-            const isIncome = tx.type === "income";
-            const cat = isIncome ? (getIncomeCategory(tx.category, language) || getCat(tx.category, language)) : getCat(tx.category, language);
-            const isDeleting = deletingId === tx.id;
-            const tags = extractTags(tx.note);
-            return (
-              <div key={tx.id} style={{ ...T.card, padding: "14px 18px", marginBottom: 9, display: "flex", alignItems: "center", gap: 13, opacity: isDeleting ? 0 : 1, transform: isDeleting ? "translateX(50px)" : "none", transition: "all 0.28s" }}>
-                <div style={{ width: 44, height: 44, borderRadius: 16, background: cat.pastelBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{cat.icon}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{tx.note || cat.label}</span>
-                    {isIncome && <span style={{ fontSize: 10, fontWeight: 600, background: "#F0FDF4", color: "#15803D", padding: "2px 7px", borderRadius: 6, fontFamily: FONT_FAMILY }}>income</span>}
-                    {!isIncome && tx.split && <span style={{ fontSize: 10, fontWeight: 600, background: "#EEF2FF", color: T.indigo, padding: "2px 7px", borderRadius: 6, fontFamily: FONT_FAMILY }}>{t.split}</span>}
-                    {tx.recurringId && <span style={{ fontSize: 10, fontWeight: 600, background: "#FEFCE8", color: "#A16207", padding: "2px 7px", borderRadius: 6, fontFamily: FONT_FAMILY }}>{t.auto}</span>}
-                  </div>
-                  <p style={{ ...T.muted, margin: "3px 0 0", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT_FAMILY }}>{cat.label} · {fmtDate(tx.date)}</p>
-                  {tags.length > 0 && (
-                    <div style={{ display: "flex", gap: 4, marginTop: 5, flexWrap: "wrap" }}>
-                      {tags.map((tag) => <span key={tag} style={{ fontSize: 10, fontWeight: 600, background: "#EEF2FF", color: "#6366F1", padding: "2px 8px", borderRadius: 99, fontFamily: FONT_FAMILY }}>{tag}</span>)}
+          ) : (() => {
+            // Group this month's (filtered) transactions by category — collapsible sections.
+            const filtered = searchFiltered([...monthTxns]);
+            const searching = !!searchQuery.trim();
+            const groups = {};
+            filtered.forEach((tx) => { (groups[tx.category] = groups[tx.category] || []).push(tx); });
+            const entries = Object.entries(groups).map(([catVal, txs]) => {
+              const isIncome = !!getIncomeCategory(catVal, language);
+              const c = isIncome ? getIncomeCategory(catVal, language) : getCat(catVal, language);
+              txs.sort((a, b) => new Date(b.date) - new Date(a.date));
+              return { catVal, c, isIncome, txs, total: txs.reduce((s, x) => s + x.amount, 0) };
+            }).sort((a, b) => b.total - a.total);
+
+            return entries.map(({ catVal, c, isIncome, txs, total }) => {
+              const open = searching || !!expandedHomeCats[catVal];
+              return (
+                <div key={catVal} style={{ ...T.card, padding: 0, marginBottom: 9, overflow: "hidden" }}>
+                  {/* Category header */}
+                  <button onClick={() => setExpandedHomeCats((p) => ({ ...p, [catVal]: !p[catVal] }))}
+                    style={{ width: "100%", border: "none", background: open ? c.pastelBg : "#FFFFFF", cursor: "pointer", fontFamily: FONT_FAMILY, padding: "13px 16px", display: "flex", alignItems: "center", gap: 12, textAlign: "left", transition: "background 0.18s" }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 13, background: open ? "#FFFFFF" : c.pastelBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, flexShrink: 0 }}>{c.icon}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: open ? c.pastelText : "#0F172A", fontFamily: FONT_FAMILY }}>{c.label}</span>
+                      <p style={{ ...T.muted, margin: "1px 0 0", fontSize: 11, fontFamily: FONT_FAMILY }}>{txs.length} {t.transactions}</p>
                     </div>
+                    <span style={{ fontFamily: MONO_FAMILY, fontSize: 15, fontWeight: 700, color: isIncome ? "#15803D" : "#EF4444", flexShrink: 0 }}>{isIncome ? "+" : "−"}{fmt(total)}</span>
+                    <ChevronDown size={16} color={open ? c.pastelText : "#CBD5E1"} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }} />
+                  </button>
+                  {/* Transactions */}
+                  {open && txs.map((tx) => {
+                    const isDeleting = deletingId === tx.id;
+                    const tags = extractTags(tx.note);
+                    return (
+                      <div key={tx.id} style={{ padding: "12px 16px", borderTop: "1px solid #F1F5F9", display: "flex", alignItems: "center", gap: 12, opacity: isDeleting ? 0 : 1, transform: isDeleting ? "translateX(50px)" : "none", transition: "all 0.28s" }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{tx.note || c.label}</span>
+                            {!isIncome && tx.split && <span style={{ fontSize: 10, fontWeight: 600, background: "#EEF2FF", color: T.indigo, padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{t.split}</span>}
+                            {tx.recurringId && <span style={{ fontSize: 10, fontWeight: 600, background: "#FEFCE8", color: "#A16207", padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{t.auto}</span>}
+                          </div>
+                          <p style={{ ...T.muted, margin: "2px 0 0", fontSize: 11, fontFamily: FONT_FAMILY }}>{fmtDate(tx.date)}{tags.length > 0 ? " · " + tags.join(" ") : ""}</p>
+                        </div>
+                        <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: isIncome ? "#15803D" : "#EF4444", flexShrink: 0 }}>{isIncome ? "+" : "−"}{fmt(tx.amount)}</span>
+                        <button onClick={() => { openEditForm(tx); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#CBD5E1", flexShrink: 0 }}><Pencil size={13} /></button>
+                        <button onClick={() => handleDelete(tx.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#CBD5E1", flexShrink: 0 }}><Trash2 size={13} /></button>
+                      </div>
+                    );
+                  })}
+                  {/* Quick add into this category */}
+                  {open && (
+                    <button onClick={() => openAddForm(catVal, isIncome ? "income" : "expense")} style={{ width: "100%", border: "none", borderTop: "1px dashed #E2E8F0", background: "#FFFFFF", cursor: "pointer", fontFamily: FONT_FAMILY, padding: "11px", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, color: c.pastelText, fontSize: 12, fontWeight: 600 }}>
+                      <Plus size={13} /> Add to {c.label}
+                    </button>
                   )}
                 </div>
-                <span style={{ fontFamily: MONO_FAMILY, fontSize: 15, fontWeight: 600, color: isIncome ? "#15803D" : "#EF4444", flexShrink: 0 }}>{isIncome ? "+" : "−"}{fmt(tx.amount)}</span>
-                <button onClick={() => { openEditForm(tx); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 5, color: "#CBD5E1", flexShrink: 0 }}><Pencil size={13} /></button>
-                <button onClick={() => handleDelete(tx.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 5, color: "#CBD5E1", flexShrink: 0 }}><Trash2 size={13} /></button>
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
       )}
 
@@ -2751,9 +2795,14 @@ export default function FinanceTracker() {
                           <p style={{ ...T.muted, margin: "2px 0 0", fontSize: 11 * ts, fontFamily: FONT_FAMILY }}>{fmtDate(tx.date)}{tags.length > 0 ? " · " + tags.join(" ") : ""}</p>
                         </div>
                         <span style={{ fontFamily: MONO_FAMILY, fontSize: 14 * ts, fontWeight: 600, color: "#EF4444", flexShrink: 0 }}>−{fmt(tx.amount)}</span>
+                        <button onClick={() => openEditForm(tx)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#CBD5E1", flexShrink: 0 }}><Pencil size={13} /></button>
+                        <button onClick={() => handleDelete(tx.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#CBD5E1", flexShrink: 0 }}><Trash2 size={13} /></button>
                       </div>
                     );
                   })}
+                  <button onClick={() => openAddForm(cat.value, "expense")} style={{ width: "100%", border: "none", borderTop: "1px dashed #E2E8F0", marginTop: 4, background: "transparent", cursor: "pointer", fontFamily: FONT_FAMILY, padding: "12px 0 2px", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, color: cat.pastelText, fontSize: 13 * ts, fontWeight: 700 }}>
+                    <Plus size={14} /> Add to {cat.label}
+                  </button>
                 </div>
               )}
               </Fragment>
