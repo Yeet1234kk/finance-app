@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from "react";
 import { PlusCircle, Wallet, Trash2, Settings, BarChart2, Home, X, Plus, AlertTriangle, Scissors, BookOpen, ChevronDown, ChevronUp, Sparkles, ArrowLeft, ChevronLeft, ChevronRight, TrendingUp, Globe, Download, Pencil, RotateCcw, Bell, Type } from "lucide-react";
 import { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie } from "recharts";
 
@@ -2692,18 +2692,23 @@ export default function FinanceTracker() {
             const cbc = catBudget > 0 ? budgetColor(catPct) : null;
             const isActive = analyticsCat === cat.value;
             const canDrill = amt > 0;
+            const ts = textScale; // honor the Settings text-size scale
+            const pctTotal = monthlyTotal > 0 ? (amt / monthlyTotal * 100) : 0;
+            const pctBudget = catBudget > 0 ? (amt / catBudget * 100) : null;
+            const drillTxns = isActive ? monthTxns.filter((tx) => tx.type !== "income" && tx.category === cat.value).sort((a, b) => new Date(b.date) - new Date(a.date)) : [];
             return (
-              <button key={cat.value} onClick={() => canDrill && setAnalyticsCat(isActive ? null : cat.value)}
-                style={{ width: "100%", textAlign: "left", border: isActive ? `2px solid ${cat.bar}` : "2px solid transparent", ...T.card, padding: "16px 18px", marginBottom: 9, cursor: canDrill ? "pointer" : "default", fontFamily: FONT_FAMILY, background: isActive ? cat.pastelBg : "#FFFFFF", transition: "all 0.18s" }}>
+              <Fragment key={cat.value}>
+              <button onClick={() => canDrill && setAnalyticsCat(isActive ? null : cat.value)}
+                style={{ width: "100%", textAlign: "left", border: isActive ? `2px solid ${cat.bar}` : "2px solid transparent", ...T.card, padding: "16px 18px", marginBottom: isActive ? 0 : 9, borderBottomLeftRadius: isActive ? 0 : 24, borderBottomRightRadius: isActive ? 0 : 24, cursor: canDrill ? "pointer" : "default", fontFamily: FONT_FAMILY, background: isActive ? cat.pastelBg : "#FFFFFF", transition: "all 0.18s" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <div style={{ width: 38, height: 38, borderRadius: 13, background: isActive ? "#FFFFFF" : cat.pastelBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{cat.icon}</div>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: isActive ? cat.pastelText : "#0F172A", fontFamily: FONT_FAMILY }}>{cat.label}</span>
+                    <span style={{ fontSize: 14 * ts, fontWeight: 600, color: isActive ? cat.pastelText : "#0F172A", fontFamily: FONT_FAMILY }}>{cat.label}</span>
                     {canDrill && <ChevronRight size={13} color={isActive ? cat.pastelText : "#CBD5E1"} style={{ transform: isActive ? "rotate(90deg)" : "none", transition: "transform 0.18s" }} />}
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <span style={{ fontFamily: MONO_FAMILY, fontSize: 15, fontWeight: 600, color: cbc ? cbc.text : (isActive ? cat.pastelText : "#0F172A") }}>{fmt(amt)}</span>
-                    {catBudget > 0 && <span style={{ ...T.muted, fontSize: 11, display: "block", fontFamily: MONO_FAMILY }}>/ {fmt(catBudget)}</span>}
+                    <span style={{ fontFamily: MONO_FAMILY, fontSize: 15 * ts, fontWeight: 600, color: cbc ? cbc.text : (isActive ? cat.pastelText : "#0F172A") }}>{fmt(amt)}</span>
+                    {catBudget > 0 && <span style={{ ...T.muted, fontSize: 11 * ts, display: "block", fontFamily: MONO_FAMILY }}>/ {fmt(catBudget)}</span>}
                   </div>
                 </div>
                 <div style={{ height: 6, background: cbc ? cbc.track : (isActive ? "#FFFFFF" : "#F1F5F9"), borderRadius: 99, overflow: "hidden" }}>
@@ -2712,59 +2717,48 @@ export default function FinanceTracker() {
                 {catBudget > 0 && catPct >= 0.75 && (
                   <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 8 }}>
                     <AlertTriangle size={12} color={cbc.text} />
-                    <span style={{ fontSize: 11, fontWeight: 600, color: cbc.text, fontFamily: FONT_FAMILY }}>{catPct >= 0.95 ? t.overLimit : t.nearLimit}</span>
+                    <span style={{ fontSize: 11 * ts, fontWeight: 600, color: cbc.text, fontFamily: FONT_FAMILY }}>{catPct >= 0.95 ? t.overLimit : t.nearLimit}</span>
                   </div>
                 )}
               </button>
+
+              {/* Inline drill-down, directly under the tapped category */}
+              {isActive && (
+                <div style={{ ...T.card, padding: "16px 18px 18px", marginBottom: 9, borderRadius: 0, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, border: `2px solid ${cat.bar}`, borderTop: "none", background: "#FFFFFF", animation: "spSlideUp 0.22s ease" }}>
+                  {/* Breakdown stats */}
+                  <div style={{ display: "grid", gridTemplateColumns: pctBudget !== null ? "1fr 1fr 1fr" : "1fr 1fr", gap: 8, marginBottom: 14 }}>
+                    {[
+                      { l: t.spent, v: fmt(amt) },
+                      { l: "% of total", v: `${pctTotal.toFixed(0)}%` },
+                      ...(pctBudget !== null ? [{ l: "% of budget", v: `${pctBudget.toFixed(0)}%` }] : []),
+                    ].map((s) => (
+                      <div key={s.l} style={{ background: cat.pastelBg, borderRadius: 14, padding: "10px 12px" }}>
+                        <p style={{ margin: "0 0 3px", fontSize: 9 * ts, fontWeight: 600, color: cat.pastelText, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT_FAMILY }}>{s.l}</p>
+                        <p style={{ margin: 0, fontSize: 15 * ts, fontWeight: 700, color: cat.pastelText, fontFamily: MONO_FAMILY }}>{s.v}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                    <p style={{ ...T.label, margin: 0, fontSize: 11 * ts, fontFamily: FONT_FAMILY }}>{drillTxns.length} {t.transactions}</p>
+                    <button onClick={() => setAnalyticsCat(null)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#F1F5F9", border: "none", cursor: "pointer", padding: "5px 12px", borderRadius: 99, fontFamily: FONT_FAMILY, fontSize: 11 * ts, fontWeight: 600, color: "#64748B" }}><X size={11} /> {t.showAll}</button>
+                  </div>
+                  {drillTxns.map((tx) => {
+                    const tags = extractTags(tx.note);
+                    return (
+                      <div key={tx.id} style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 0", borderTop: "1px solid #F1F5F9" }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ fontSize: 13 * ts, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{tx.note || cat.label}</span>
+                          <p style={{ ...T.muted, margin: "2px 0 0", fontSize: 11 * ts, fontFamily: FONT_FAMILY }}>{fmtDate(tx.date)}{tags.length > 0 ? " · " + tags.join(" ") : ""}</p>
+                        </div>
+                        <span style={{ fontFamily: MONO_FAMILY, fontSize: 14 * ts, fontWeight: 600, color: "#EF4444", flexShrink: 0 }}>−{fmt(tx.amount)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              </Fragment>
             );
           })}
-
-          {/* Category drill-down */}
-          {analyticsCat && (() => {
-            const cat = getCat(analyticsCat, language);
-            const amt = catTotals[analyticsCat] || 0;
-            const pctTotal = monthlyTotal > 0 ? (amt / monthlyTotal * 100) : 0;
-            const catBudget = parseFloat(budgets.categories?.[analyticsCat]) || 0;
-            const pctBudget = catBudget > 0 ? (amt / catBudget * 100) : null;
-            const drillTxns = monthTxns.filter((tx) => tx.type !== "income" && tx.category === analyticsCat).sort((a, b) => new Date(b.date) - new Date(a.date));
-            return (
-              <div style={{ ...T.card, padding: "18px 20px", marginBottom: 12, border: `1.5px solid ${cat.bar}55`, animation: "spSlideUp 0.25s ease" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 12, background: cat.pastelBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17 }}>{cat.icon}</div>
-                    <span style={{ fontSize: 15, fontWeight: 700, color: "#0F172A", fontFamily: FONT_FAMILY }}>{cat.label}</span>
-                  </div>
-                  <button onClick={() => setAnalyticsCat(null)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#F1F5F9", border: "none", cursor: "pointer", padding: "5px 12px", borderRadius: 99, fontFamily: FONT_FAMILY, fontSize: 11, fontWeight: 600, color: "#64748B" }}><X size={11} /> {t.showAll}</button>
-                </div>
-                {/* Breakdown stats */}
-                <div style={{ display: "grid", gridTemplateColumns: pctBudget !== null ? "1fr 1fr 1fr" : "1fr 1fr", gap: 8, marginBottom: 16 }}>
-                  {[
-                    { l: t.spent, v: fmt(amt) },
-                    { l: "% of total", v: `${pctTotal.toFixed(0)}%` },
-                    ...(pctBudget !== null ? [{ l: "% of budget", v: `${pctBudget.toFixed(0)}%` }] : []),
-                  ].map((s) => (
-                    <div key={s.l} style={{ background: cat.pastelBg, borderRadius: 14, padding: "11px 12px" }}>
-                      <p style={{ margin: "0 0 3px", fontSize: 9, fontWeight: 600, color: cat.pastelText, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT_FAMILY }}>{s.l}</p>
-                      <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: cat.pastelText, fontFamily: MONO_FAMILY }}>{s.v}</p>
-                    </div>
-                  ))}
-                </div>
-                <p style={{ ...T.label, margin: "0 0 10px", fontFamily: FONT_FAMILY }}>{drillTxns.length} {t.transactions}</p>
-                {drillTxns.map((tx) => {
-                  const tags = extractTags(tx.note);
-                  return (
-                    <div key={tx.id} style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 0", borderTop: "1px solid #F1F5F9" }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{tx.note || cat.label}</span>
-                        <p style={{ ...T.muted, margin: "2px 0 0", fontSize: 11, fontFamily: FONT_FAMILY }}>{fmtDate(tx.date)}{tags.length > 0 ? " · " + tags.join(" ") : ""}</p>
-                      </div>
-                      <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: "#EF4444", flexShrink: 0 }}>−{fmt(tx.amount)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })()}
           {topTags.length > 0 && (
             <>
               <SectionLabel style={{ marginTop: 8 }}>{t.topTagsMonth}</SectionLabel>
