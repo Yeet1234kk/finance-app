@@ -1727,6 +1727,78 @@ function CategoryForm({ type, initial, onSave, onClose }) {
   );
 }
 
+// ─── Quick Add (MeowJot-style fast keypad logging) ───────────────────────────
+function QuickAddSheet({ categories, defaultCat, onSave, onDetailed, onClose }) {
+  const [amount, setAmount] = useState("");
+  const [category, setCategory] = useState(defaultCat || categories[0]?.value);
+  const [note, setNote] = useState("");
+  const amt = parseFloat(amount) || 0;
+  const cat = categories.find((c) => c.value === category) || categories[0];
+
+  const press = (k) => setAmount((a) => {
+    if (k === "⌫") return a.slice(0, -1);
+    if (k === ".") return a.includes(".") ? a : (a === "" ? "0." : a + ".");
+    if (a.includes(".") && a.split(".")[1].length >= 2) return a; // max 2 decimals
+    if (a.replace(".", "").length >= 9) return a;                  // sane length cap
+    return a === "0" ? k : a + k;
+  });
+
+  const keys = ["1","2","3","4","5","6","7","8","9",".","0","⌫"];
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 650, display: "flex", alignItems: "flex-end", justifyContent: "center", fontFamily: FONT_FAMILY }}>
+      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(4px)" }} />
+      <div style={{ position: "relative", background: "#FFFDF8", borderRadius: "30px 30px 0 0", padding: "10px 18px 28px", width: "100%", maxWidth: 430, boxShadow: "0 -12px 48px rgba(15,23,42,0.22)", animation: "spSlideUp 0.32s cubic-bezier(0.32,0.72,0,1)" }}>
+        <div style={{ width: 40, height: 4, background: "#E7E2D6", borderRadius: 99, margin: "10px auto 14px" }} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0F172A", fontFamily: FONT_FAMILY }}>🐱 Quick Add</p>
+          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 99, border: "none", background: "#F1ECE0", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#94896E" }}><X size={15} /></button>
+        </div>
+
+        {/* Amount display */}
+        <div style={{ textAlign: "center", padding: "6px 0 12px" }}>
+          <span style={{ fontSize: 30, fontWeight: 700, color: amt > 0 ? cat.bar : "#CBBFA3", fontFamily: MONO_FAMILY, verticalAlign: "middle", marginRight: 4 }}>฿</span>
+          <span style={{ fontSize: 52, fontWeight: 700, color: amt > 0 ? "#0F172A" : "#CBBFA3", fontFamily: MONO_FAMILY, letterSpacing: "-2px" }}>{amount || "0"}</span>
+        </div>
+
+        {/* Category quick row */}
+        <div style={{ display: "flex", gap: 7, overflowX: "auto", padding: "2px 2px 12px", WebkitOverflowScrolling: "touch" }}>
+          {categories.map((c) => {
+            const on = c.value === category;
+            return (
+              <button key={c.value} onClick={() => setCategory(c.value)} style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 99, border: `2px solid ${on ? c.bar : "transparent"}`, background: on ? c.pastelBg : "#F4EFE4", color: on ? c.pastelText : "#8C8674", cursor: "pointer", fontFamily: FONT_FAMILY, fontSize: 13, fontWeight: 600, transition: "all 0.15s" }}>
+                <span style={{ fontSize: 16 }}>{c.icon}</span>{c.labelShort}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Note */}
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a note… (optional)" style={{ width: "100%", boxSizing: "border-box", padding: "11px 16px", borderRadius: 14, border: "1.5px solid #EAE3D4", background: "#FFFFFF", fontSize: 14, fontFamily: FONT_FAMILY, color: "#0F172A", outline: "none", marginBottom: 12 }} />
+
+        {/* Keypad */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 12 }}>
+          {keys.map((k) => (
+            <button key={k} onClick={() => press(k)} style={{ padding: "16px 0", borderRadius: 16, border: "none", background: k === "⌫" ? "#F1ECE0" : "#FFFFFF", boxShadow: "0 1px 4px rgba(15,23,42,0.06)", fontSize: 22, fontWeight: 600, color: "#0F172A", fontFamily: MONO_FAMILY, cursor: "pointer", transition: "transform 0.08s" }}
+              onMouseDown={(e) => e.currentTarget.style.transform = "scale(0.94)"}
+              onMouseUp={(e) => e.currentTarget.style.transform = "scale(1)"}
+              onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}>
+              {k}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onDetailed} style={{ flexShrink: 0, padding: "15px 18px", borderRadius: 18, border: "1.5px solid #EAE3D4", background: "#FFFFFF", color: "#8A7E63", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY }}>More</button>
+          <button onClick={() => amt > 0 && onSave({ category, amount: amt, note })} disabled={amt <= 0} style={{ flex: 1, padding: "15px", borderRadius: 18, border: "none", background: amt > 0 ? cat.bar : "#E7E2D6", color: "#fff", fontSize: 16, fontWeight: 700, cursor: amt > 0 ? "pointer" : "not-allowed", fontFamily: FONT_FAMILY, boxShadow: amt > 0 ? `0 8px 22px ${cat.bar}55` : "none", transition: "all 0.18s" }}>
+            Save {amt > 0 ? `฿${amt.toLocaleString()}` : ""}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function FinanceTracker() {
   const [textScale,      setTextScale]      = useState(() => lsGet("ft_text_scale", 1));
   const [showTextSizer,  setShowTextSizer]  = useState(false);
@@ -1744,6 +1816,7 @@ export default function FinanceTracker() {
     inc: lsGet("ft_cats_inc", null) || defaultIncCats(),
   }));
   // Category management UI state
+  const [showQuickAdd,  setShowQuickAdd]  = useState(false);
   const [catModal,      setCatModal]      = useState(null); // { type, cat } | null
   const [catDeleteTgt,  setCatDeleteTgt]  = useState(null); // { type, cat, count } | null
   setCatRegistry(cats); // mirror to module-level helpers every render (idempotent)
@@ -1966,6 +2039,14 @@ export default function FinanceTracker() {
     a.href = url; a.download = `transactions_${new Date().toISOString().slice(0,10)}.csv`;
     a.click(); URL.revokeObjectURL(url);
     showToast("✓ CSV exported");
+  };
+
+  const quickSave = ({ category, amount, note }) => {
+    const net = parseFloat(amount) || 0;
+    if (net <= 0) return;
+    setTransactions((p) => [{ id: uid(), type: "expense", amount: net, category, note: (note || "").trim(), date: todayStr(), tags: extractTags(note || ""), split: false, originalAmount: net, reimbursed: 0 }, ...p]);
+    setShowQuickAdd(false);
+    showToast("✓ Saved");
   };
 
   const handleAddSub = () => {
@@ -2301,6 +2382,17 @@ export default function FinanceTracker() {
 
       {showTextSizer && <TextSizerOverlay textScale={textScale} setTextScale={setTextScale} onClose={() => setShowTextSizer(false)} />}
 
+      {/* Quick Add keypad */}
+      {showQuickAdd && (
+        <QuickAddSheet
+          categories={CATEGORIES}
+          defaultCat={form.category}
+          onSave={quickSave}
+          onDetailed={() => { setShowQuickAdd(false); setEditingTx(null); setForm(blankForm); setFormPrefilledMonth(null); setShowForm(true); setTab("home"); }}
+          onClose={() => setShowQuickAdd(false)}
+        />
+      )}
+
       {/* Category add/edit modal */}
       {catModal && (
         <CategoryForm type={catModal.type} initial={catModal.cat} onSave={(cat) => saveCategory(catModal.type, cat)} onClose={() => setCatModal(null)} />
@@ -2426,9 +2518,9 @@ export default function FinanceTracker() {
       {/* ══ HOME ══ */}
       {tab === "home" && (
         <div style={{ padding: "0 16px" }}>
-          <button onClick={() => { 
+          <button onClick={() => {
             if (showForm) { setShowForm(false); setError(""); setFormPrefilledMonth(null); setEditingTx(null); setForm(blankForm); }
-            else { setShowForm(true); setError(""); setFormPrefilledMonth(null); setEditingTx(null); }
+            else { setError(""); setFormPrefilledMonth(null); setEditingTx(null); setShowQuickAdd(true); }
           }} style={{
             width: "100%", padding: "15px", borderRadius: 20, border: "none",
             background: showForm ? "#E2E8F0" : T.indigo, color: showForm ? "#475569" : "#FFFFFF",
