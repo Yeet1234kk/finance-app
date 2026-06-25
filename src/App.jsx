@@ -2137,7 +2137,9 @@ export default function FinanceTracker() {
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
   const month        = currentMonth();
-  const monthTxns    = transactions.filter((tx) => tx.date.startsWith(month));
+  // Uncategorized uploads wait in their own list and stay out of totals/analytics until categorized.
+  const pendingTxns  = transactions.filter((tx) => tx.pending);
+  const monthTxns    = transactions.filter((tx) => !tx.pending && tx.date.startsWith(month));
   const monthlyTotal = monthTxns.filter((tx) => tx.type !== "income").reduce((s, tx) => s + tx.amount, 0);
   const totalBudget  = parseFloat(budgets.total) || 0;
   const budgetPct    = totalBudget > 0 ? Math.min(monthlyTotal / totalBudget, 1) : 0;
@@ -2277,28 +2279,38 @@ export default function FinanceTracker() {
     showToast("✓ Saved");
   };
 
-  // Receipt OCR: read image → extract total → open Quick Add prefilled for verification.
-  const handleScanFile = async (file) => {
-    if (!file) return;
+  // Bulk receipt OCR: read each uploaded image → extract total → queue as an
+  // "Uncategorized" pending transaction for the user to categorize afterwards.
+  const handleUploadFiles = async (fileList) => {
+    const files = Array.from(fileList || []).filter((f) => f && f.type.startsWith("image/"));
+    if (!files.length) return;
     if (!window.Tesseract) { showToast(tr("OCR not loaded — check connection", "โหลด OCR ไม่สำเร็จ — ตรวจสอบเน็ต")); return; }
-    setScanProgress(0);
+    const created = [];
     try {
-      const worker = await getOcrWorker((p) => setScanProgress(p));
-      const { data } = await worker.recognize(file);
-      const amount = extractSlipAmount(data.text);
-      setScanAmount(amount);
+      const worker = await getOcrWorker(() => {});
+      for (let i = 0; i < files.length; i++) {
+        setScanProgress({ i: i + 1, n: files.length });
+        const { data } = await worker.recognize(files[i]);
+        const amount = extractSlipAmount(data.text);
+        created.push({
+          id: uid(), type: "expense", amount: amount != null ? Math.round(amount * 100) / 100 : 0,
+          category: "Uncategorized", pending: true, note: "", date: todayStr(),
+          tags: [], split: false, originalAmount: amount != null ? Math.round(amount * 100) / 100 : 0, reimbursed: 0,
+        });
+      }
+      setTransactions((p) => [...created, ...p]);
       setScanProgress(null);
-      setEditingTx(null); setFormPrefilledMonth(null); setFormTxType("expense");
-      setShowQuickAdd(true);
-      if (amount == null) showToast(tr("Couldn't read total — enter it manually", "อ่านยอดไม่ได้ — กรอกเอง"));
+      showToast(tr(`${created.length} slip${created.length !== 1 ? "s" : ""} added — categorize them`, `เพิ่ม ${created.length} สลิป — รอจัดหมวดหมู่`));
     } catch (err) {
       console.error("OCR failed:", err);
       setScanProgress(null);
-      setScanAmount(null);
-      setShowQuickAdd(true);
-      showToast(tr("Scan failed — enter it manually", "สแกนไม่สำเร็จ — กรอกเอง"));
+      showToast(tr("Upload failed — try again", "อัปโหลดไม่สำเร็จ — ลองใหม่"));
     }
   };
+
+  // Assign a category to a pending (uncategorized) upload.
+  const categorizePending = (id, category) =>
+    setTransactions((p) => p.map((tx) => tx.id === id ? { ...tx, category, pending: false } : tx));
 
   const handleAddSub = () => {
     if (!subForm.name || !subForm.amount || parseFloat(subForm.amount) <= 0) return;
@@ -2654,7 +2666,7 @@ export default function FinanceTracker() {
         <div style={{ position: "fixed", inset: 0, zIndex: 800, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_FAMILY }}>
           <div style={{ background: "#FFFFFF", borderRadius: 22, padding: "28px 36px", textAlign: "center", boxShadow: "0 20px 60px rgba(15,23,42,0.3)" }}>
             <div style={{ width: 40, height: 40, margin: "0 auto 14px", borderRadius: "50%", border: "3px solid #E2E8F0", borderTopColor: T.indigo, animation: "spSpin 0.8s linear infinite" }} />
-            <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{tr("Reading receipt…", "กำลังอ่านใบเสร็จ…")} {scanProgress}%</p>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{tr("Reading slip", "กำลังอ่านสลิป")} {scanProgress?.i}/{scanProgress?.n}…</p>
           </div>
         </div>
       )}
@@ -2801,17 +2813,45 @@ export default function FinanceTracker() {
           {/* Scan receipt (OCR) */}
           {!showForm && (
             <>
-              <input ref={scanInputRef} type="file" accept="image/*" hidden
-                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; handleScanFile(f); }} />
+              <input ref={scanInputRef} type="file" accept="image/*" multiple hidden
+                onChange={(e) => { const files = Array.from(e.target.files || []); e.target.value = ""; handleUploadFiles(files); }} />
               <button onClick={() => scanInputRef.current?.click()} disabled={scanProgress !== null} style={{
                 width: "100%", padding: "13px", borderRadius: 20, border: "1.5px solid #E2E8F0",
                 background: "#FFFFFF", color: T.indigo, fontSize: 14, fontWeight: 600,
                 cursor: scanProgress !== null ? "default" : "pointer", fontFamily: FONT_FAMILY,
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 14,
               }}>
-                🖼️ {tr("Upload slip", "อัปโหลดสลิป")}
+                🖼️ {tr("Upload slips", "อัปโหลดสลิป")}
               </button>
             </>
+          )}
+
+          {/* Waiting to be categorized */}
+          {!showForm && pendingTxns.length > 0 && (
+            <CardWrap style={{ marginBottom: 14, background: "#FFFBEB", border: "1.5px solid #FDE68A" }}>
+              <p style={{ ...T.label, margin: "0 0 10px", color: "#92400E", fontFamily: FONT_FAMILY }}>
+                🗂️ {tr("Waiting to categorize", "รอจัดหมวดหมู่")} · {pendingTxns.length}
+              </p>
+              {pendingTxns.map((tx) => (
+                <div key={tx.id} style={{ background: "#FFFFFF", borderRadius: 16, padding: "12px 14px", marginBottom: 8, border: "1px solid #FDE68A" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: "#94A3B8", fontFamily: MONO_FAMILY }}>฿</span>
+                    <input type="text" inputMode="decimal" value={tx.amount || ""} placeholder="0"
+                      onChange={(e) => { const v = parseFloat(e.target.value.replace(/,/g, "")) || 0; setTransactions((p) => p.map((x) => x.id === tx.id ? { ...x, amount: v, originalAmount: v } : x)); }}
+                      style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 22, fontWeight: 700, color: "#0F172A", fontFamily: MONO_FAMILY, width: "100%" }} />
+                    <button onClick={() => handleDelete(tx.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#CBD5E1", padding: 4 }}><Trash2 size={15} /></button>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+                    {CATEGORIES.map((c) => (
+                      <button key={c.value} onClick={() => { if ((tx.amount || 0) > 0) categorizePending(tx.id, c.value); else showToast(tr("Enter an amount first", "กรอกจำนวนเงินก่อน")); }}
+                        style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 99, border: "1.5px solid #E2E8F0", background: "#F8FAFC", color: "#475569", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY }}>
+                        <span style={{ fontSize: 15 }}>{c.icon}</span>{c.labelShort}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </CardWrap>
           )}
 
           {showForm && !formPrefilledMonth && (
