@@ -1874,11 +1874,11 @@ function CategoryForm({ type, initial, onSave, onClose, language = "EN" }) {
 }
 
 // ─── Quick Add (MeowJot-style fast keypad logging) ───────────────────────────
-function QuickAddSheet({ expenseCats, incomeCats, defaultCat, defaultType = "expense", onSave, onDetailed, onClose, language = "EN" }) {
+function QuickAddSheet({ expenseCats, incomeCats, defaultCat, defaultType = "expense", initialAmount, onSave, onDetailed, onClose, language = "EN" }) {
   const tr = (en, th) => (language === "TH" ? th : en);
   const [type, setType] = useState(defaultType);
   const categories = type === "income" ? incomeCats : expenseCats;
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(initialAmount != null ? String(initialAmount) : "");
   const [category, setCategory] = useState(defaultCat || categories[0]?.value);
   const [note, setNote] = useState("");
   const amt = parseFloat(amount) || 0;
@@ -1959,6 +1959,32 @@ function QuickAddSheet({ expenseCats, incomeCats, defaultCat, defaultType = "exp
   );
 }
 
+// ─── Receipt OCR (Tesseract.js via CDN window.Tesseract) ─────────────────────
+let _ocrWorker = null;
+async function getOcrWorker(onProgress) {
+  if (_ocrWorker) return _ocrWorker;
+  _ocrWorker = await window.Tesseract.createWorker(["eng", "tha"], 1, {
+    logger: (m) => { if (m.status === "recognizing text") onProgress(Math.round(m.progress * 100)); },
+  });
+  return _ocrWorker;
+}
+// Extract a total: keyword priority (Total/Amount/รวม/จำนวนเงิน…), else largest currency-shaped number.
+function extractSlipAmount(text) {
+  if (!text) return null;
+  const NUM = "(\\d{1,3}(?:,\\d{3})*(?:\\.\\d{1,2})?|\\d+(?:\\.\\d{1,2})?)";
+  const KEYWORDS = ["grand total", "total", "amount due", "amount", "balance",
+                    "ยอดรวมสุทธิ", "ยอดรวม", "ยอดชำระ", "รวมทั้งสิ้น", "จำนวนเงิน", "รวม"];
+  for (const kw of KEYWORDS) {
+    const re = new RegExp(kw.replace(/\s+/g, "\\s*") + "[\\s:.\\-฿]*" + NUM, "i");
+    const m = text.match(re);
+    if (m && m[1]) { const v = parseFloat(m[1].replace(/,/g, "")); if (v > 0) return v; }
+  }
+  const all = [...text.matchAll(new RegExp(NUM, "g"))]
+    .map((m) => parseFloat(m[0].replace(/,/g, "")))
+    .filter((v) => !isNaN(v) && v >= 1 && v < 10_000_000);
+  return all.length ? Math.max(...all) : null;
+}
+
 export default function FinanceTracker() {
   const [textScale,      setTextScale]      = useState(() => lsGet("ft_text_scale", 1));
   const [showTextSizer,  setShowTextSizer]  = useState(false);
@@ -1984,6 +2010,10 @@ export default function FinanceTracker() {
   setCatRegistry(cats); // mirror to module-level helpers every render (idempotent)
   const [tab,           setTab]           = useState("home");
   const [showForm,      setShowForm]      = useState(false);
+  // Receipt scanning (OCR)
+  const [scanProgress,  setScanProgress]  = useState(null); // null = idle, 0..100 while reading
+  const [scanAmount,    setScanAmount]    = useState(null); // prefilled amount handed to Quick Add
+  const scanInputRef = useRef(null);
   const [showSubForm,   setShowSubForm]   = useState(false);
   const [deletingId,    setDeletingId]    = useState(null);
   const [toast,         setToast]         = useState(null);
@@ -2243,7 +2273,31 @@ export default function FinanceTracker() {
     if (net <= 0) return;
     setTransactions((p) => [{ id: uid(), type, amount: net, category, note: (note || "").trim(), date: todayStr(), tags: extractTags(note || ""), split: false, originalAmount: net, reimbursed: 0 }, ...p]);
     setShowQuickAdd(false);
+    setScanAmount(null);
     showToast("✓ Saved");
+  };
+
+  // Receipt OCR: read image → extract total → open Quick Add prefilled for verification.
+  const handleScanFile = async (file) => {
+    if (!file) return;
+    if (!window.Tesseract) { showToast(tr("OCR not loaded — check connection", "โหลด OCR ไม่สำเร็จ — ตรวจสอบเน็ต")); return; }
+    setScanProgress(0);
+    try {
+      const worker = await getOcrWorker((p) => setScanProgress(p));
+      const { data } = await worker.recognize(file);
+      const amount = extractSlipAmount(data.text);
+      setScanAmount(amount);
+      setScanProgress(null);
+      setEditingTx(null); setFormPrefilledMonth(null); setFormTxType("expense");
+      setShowQuickAdd(true);
+      if (amount == null) showToast(tr("Couldn't read total — enter it manually", "อ่านยอดไม่ได้ — กรอกเอง"));
+    } catch (err) {
+      console.error("OCR failed:", err);
+      setScanProgress(null);
+      setScanAmount(null);
+      setShowQuickAdd(true);
+      showToast(tr("Scan failed — enter it manually", "สแกนไม่สำเร็จ — กรอกเอง"));
+    }
   };
 
   const handleAddSub = () => {
@@ -2303,7 +2357,7 @@ export default function FinanceTracker() {
   return (
     <div style={{ fontFamily: FONT_FAMILY, maxWidth: 430, margin: "0 auto", minHeight: "100vh", background: T.pageBg, paddingBottom: 90, fontSize: `${textScale * 100}%` }}>
       <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet" />
-      <style>{`@keyframes spSlideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}`}</style>
+      <style>{`@keyframes spSlideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes spSpin{to{transform:rotate(360deg)}}`}</style>
 
       {showYearlySummary && <YearlySummary transactions={transactions} language={language} yearlyYear={yearlyYear} setYearlyYear={setYearlyYear} setShowYearlySummary={setShowYearlySummary} computeYearlyData={computeYearlyData} t={t} />}
 
@@ -2582,15 +2636,27 @@ export default function FinanceTracker() {
       {/* Quick Add keypad */}
       {showQuickAdd && (
         <QuickAddSheet
+          key={scanAmount != null ? "scan-" + scanAmount : "manual"}
           expenseCats={CATEGORIES}
           incomeCats={INCOME_CATS}
           defaultType={formTxType}
           defaultCat={formTxType === "income" ? INCOME_CATS[0]?.value : form.category}
+          initialAmount={scanAmount}
           onSave={quickSave}
-          onDetailed={() => { setShowQuickAdd(false); setEditingTx(null); setForm(blankForm); setFormPrefilledMonth(null); setShowForm(true); setTab("home"); }}
-          onClose={() => setShowQuickAdd(false)}
+          onDetailed={() => { setShowQuickAdd(false); setScanAmount(null); setEditingTx(null); setForm(blankForm); setFormPrefilledMonth(null); setShowForm(true); setTab("home"); }}
+          onClose={() => { setShowQuickAdd(false); setScanAmount(null); }}
           language={language}
         />
+      )}
+
+      {/* OCR scanning overlay */}
+      {scanProgress !== null && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 800, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_FAMILY }}>
+          <div style={{ background: "#FFFFFF", borderRadius: 22, padding: "28px 36px", textAlign: "center", boxShadow: "0 20px 60px rgba(15,23,42,0.3)" }}>
+            <div style={{ width: 40, height: 40, margin: "0 auto 14px", borderRadius: "50%", border: "3px solid #E2E8F0", borderTopColor: T.indigo, animation: "spSpin 0.8s linear infinite" }} />
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{tr("Reading receipt…", "กำลังอ่านใบเสร็จ…")} {scanProgress}%</p>
+          </div>
+        </div>
       )}
 
       {/* Category add/edit modal */}
@@ -2731,6 +2797,22 @@ export default function FinanceTracker() {
             <PlusCircle size={18} />
             {showForm ? t.cancel : t.addTransaction}
           </button>
+
+          {/* Scan receipt (OCR) */}
+          {!showForm && (
+            <>
+              <input ref={scanInputRef} type="file" accept="image/*" capture="environment" hidden
+                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; handleScanFile(f); }} />
+              <button onClick={() => scanInputRef.current?.click()} disabled={scanProgress !== null} style={{
+                width: "100%", padding: "13px", borderRadius: 20, border: "1.5px solid #E2E8F0",
+                background: "#FFFFFF", color: T.indigo, fontSize: 14, fontWeight: 600,
+                cursor: scanProgress !== null ? "default" : "pointer", fontFamily: FONT_FAMILY,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 14,
+              }}>
+                📷 {tr("Scan receipt", "สแกนใบเสร็จ")}
+              </button>
+            </>
+          )}
 
           {showForm && !formPrefilledMonth && (
             <CardWrap style={{ marginBottom: 14 }}>
