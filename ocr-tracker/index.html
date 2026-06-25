@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+  <title>My Expenses</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Tesseract.js (OCR) via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-inner">
+      <h1 id="t-title">My Expenses</h1>
+      <button id="langToggle" class="lang-toggle" aria-label="Toggle language">TH</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Total summary card -->
+    <section class="card total-card">
+      <p class="total-label" id="t-totalLabel">Total Spent</p>
+      <p class="total-amount" id="totalAmount">฿0</p>
+      <p class="total-sub" id="totalSub">0 transactions</p>
+    </section>
+
+    <!-- Transaction list -->
+    <p class="section-label" id="t-recent">Recent</p>
+    <section id="txnList" class="txn-list"></section>
+
+    <div id="emptyState" class="empty-state">
+      <div class="empty-icon">🧾</div>
+      <p class="empty-title" id="t-emptyTitle">No transactions yet</p>
+      <p class="empty-sub" id="t-emptySub">Tap + to scan a receipt</p>
+    </div>
+  </main>
+
+  <!-- Floating action button -->
+  <button id="fab" class="fab" aria-label="Scan receipt">+</button>
+  <input type="file" id="fileInput" accept="image/*" capture="environment" hidden />
+
+  <!-- OCR loading overlay -->
+  <div id="loadingOverlay" class="overlay hidden">
+    <div class="loading-box">
+      <div class="spinner"></div>
+      <p id="loadingText">Reading receipt… 0%</p>
+    </div>
+  </div>
+
+  <!-- Confirm / verify modal -->
+  <div id="confirmOverlay" class="overlay hidden">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <h2 id="t-confirmTitle">Confirm Transaction</h2>
+        <button id="confirmClose" class="icon-btn" aria-label="Close">✕</button>
+      </div>
+
+      <p class="hint" id="ocrHint"></p>
+
+      <label class="field-label" id="t-amountLabel">Amount</label>
+      <div class="amount-input">
+        <span class="baht">฿</span>
+        <input id="amountInput" type="text" inputmode="decimal" placeholder="0" />
+      </div>
+
+      <label class="field-label" id="t-catLabel">Category</label>
+      <div id="catGrid" class="cat-grid"></div>
+
+      <label class="field-label" id="t-dateLabel">Date</label>
+      <input id="dateInput" type="date" class="text-input" />
+
+      <label class="field-label" id="t-noteLabel">Note (optional)</label>
+      <input id="noteInput" type="text" class="text-input" placeholder="" />
+
+      <button id="saveBtn" class="primary-btn">Save</button>
+    </div>
+  </div>
+
+  <!-- Image preview thumbnail (collapsible inside confirm) -->
+  <script src="app.js"></script>
+</body>
+</html>
