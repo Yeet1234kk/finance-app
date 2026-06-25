@@ -2801,7 +2801,7 @@ export default function FinanceTracker() {
           {/* Scan receipt (OCR) */}
           {!showForm && (
             <>
-              <input ref={scanInputRef} type="file" accept="image/*" capture="environment" hidden
+              <input ref={scanInputRef} type="file" accept="image/*" hidden
                 onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; handleScanFile(f); }} />
               <button onClick={() => scanInputRef.current?.click()} disabled={scanProgress !== null} style={{
                 width: "100%", padding: "13px", borderRadius: 20, border: "1.5px solid #E2E8F0",
@@ -2809,7 +2809,7 @@ export default function FinanceTracker() {
                 cursor: scanProgress !== null ? "default" : "pointer", fontFamily: FONT_FAMILY,
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 14,
               }}>
-                📷 {tr("Scan receipt", "สแกนใบเสร็จ")}
+                🖼️ {tr("Upload slip", "อัปโหลดสลิป")}
               </button>
             </>
           )}
