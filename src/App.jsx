@@ -9,7 +9,7 @@ const _spTodayStr = () => new Date().toISOString().slice(0, 10);
 const _spNowISO   = () => new Date().toISOString();
 const _spUid      = () => "x" + Math.random().toString(36).slice(2, 11);
 const _spFmt      = (n) => new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", maximumFractionDigits: 0 }).format(Math.abs(n));
-const _spFmtDate  = (d) => { const dt = new Date(d + "T00:00:00"); const today = new Date(); const diff = Math.round((today - dt) / 864e5); if (diff === 0) return "Today"; if (diff === 1) return "Yesterday"; return dt.toLocaleDateString("en-US", { month: "short", day: "numeric" }); };
+const _spFmtDate  = (d, lang = "EN") => { const dt = new Date(d + "T00:00:00"); const today = new Date(); const diff = Math.round((today - dt) / 864e5); if (diff === 0) return lang === "TH" ? "วันนี้" : "Today"; if (diff === 1) return lang === "TH" ? "เมื่อวาน" : "Yesterday"; return dt.toLocaleDateString(lang === "TH" ? "th-TH" : "en-US", { month: "short", day: "numeric" }); };
 const _spFmtTime  = (iso) => new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 
 const SPDB = {
@@ -20,30 +20,15 @@ const SPDB = {
     return this;
   },
   _seed() {
-    const now = _spNowISO(), d = _spTodayStr();
+    // Start clean: only the app owner ("You") exists. No demo groups/expenses.
     return {
-      groups: [
-        { id: "grp1", name: "🏖️ Koh Samui Trip", emoji: "🏖️", color: "#FF6B6B", createdAt: "2026-05-01", memberIds: ["u1","u2","u3","u4"], archivedAt: null },
-        { id: "grp2", name: "🏠 Bangkok Condo",  emoji: "🏠", color: "#4ECDC4", createdAt: "2026-01-01", memberIds: ["u1","u5"], archivedAt: null },
-      ],
+      groups: [],
       members: [
-        { id: "u1", name: "You",  initials: "YO", color: "#6C63FF" },
-        { id: "u2", name: "Aom",  initials: "AM", color: "#FF6B6B" },
-        { id: "u3", name: "Bank", initials: "BK", color: "#FFB347" },
-        { id: "u4", name: "Chai", initials: "CH", color: "#4ECDC4" },
-        { id: "u5", name: "Nook", initials: "NK", color: "#A29BFE" },
+        { id: "u1", name: "You", initials: "YO", color: "#6C63FF" },
       ],
-      expenses: [
-        { id: "ex1", groupId: "grp1", description: "Hotel · 3 nights", amount: 9600, category: "Stay",   paidBy: "u1", date: d, splits: [{id:"u1",amount:2400},{id:"u2",amount:2400},{id:"u3",amount:2400},{id:"u4",amount:2400}], createdAt: now, note: "" },
-        { id: "ex2", groupId: "grp1", description: "Seafood dinner",   amount: 3200, category: "Food",   paidBy: "u2", date: d, splits: [{id:"u1",amount:800},{id:"u2",amount:800},{id:"u3",amount:800},{id:"u4",amount:800}],   createdAt: now, note: "" },
-        { id: "ex3", groupId: "grp1", description: "Speed boat tour",  amount: 5600, category: "Fun",    paidBy: "u3", date: d, splits: [{id:"u1",amount:1400},{id:"u2",amount:1400},{id:"u3",amount:1400},{id:"u4",amount:1400}],createdAt: now, note: "" },
-        { id: "ex5", groupId: "grp2", description: "Electric + Water", amount: 2100, category: "Bills",  paidBy: "u1", date: d, splits: [{id:"u1",amount:1050},{id:"u5",amount:1050}], createdAt: now, note: "" },
-      ],
+      expenses: [],
       settlements: [],
-      activity: [
-        { id: "act1", type: "expense_added", groupId: "grp1", expenseId: "ex1", userId: "u1", timestamp: now, meta: { description: "Hotel · 3 nights", amount: 9600 } },
-        { id: "act2", type: "expense_added", groupId: "grp2", expenseId: "ex5", userId: "u1", timestamp: now, meta: { description: "Electric + Water", amount: 2100 } },
-      ],
+      activity: [],
     };
   },
   save() { try { localStorage.setItem("splitpro_db", JSON.stringify(this._store)); } catch {} },
@@ -119,6 +104,95 @@ const SP_CATS = [
 ];
 const spGetCat = v => SP_CATS.find(c => c.v === v) || SP_CATS[SP_CATS.length - 1];
 
+// Map a SplitPro category onto a main-app expense category so linked Home
+// transactions land in a sensible bucket.
+const SP_TO_APP_CAT = { Food: "Food", Travel: "Transport", Stay: "Other", Fun: "Other", Bills: "Bills", Shop: "Shopping", Other: "Other" };
+const spToAppCat = v => SP_TO_APP_CAT[v] || "Other";
+
+// ─── SplitPro i18n ───────────────────────────────────────────────────────────
+const SP_T = {
+  EN: {
+    noGroups: "No groups yet", noGroupsSub: "Create a group to start tracking shared expenses",
+    noExpenses: "No expenses yet", noExpensesSub: "Add the first expense to get started",
+    noData: "No data yet", noDataSub: "Add expenses to see analytics",
+    noFriends: "No friends yet", noFriendsSub: "Add members to your groups to see them here",
+    noActivity: "No activity yet", noActivitySub: "Your expense history will appear here",
+    balanced: "✓ Balanced", remaining: (v) => `Remaining: ${v}`,
+    addExpense: "Add Expense", editExpense: "Edit Expense", quickAdd: "✨ Quick add",
+    quickAddPh: 'e.g. "Dinner ฿1200 with Aom"', parse: "Parse", whatFor: "What's this for?",
+    group: "Group", date: "Date", category: "Category", paidBy: "Paid by", splitMethod: "Split method",
+    mEqual: "Equal", mCustom: "Custom", mPercent: "%", mShares: "Shares",
+    errDesc: "Enter a description", errAmount: "Enter a valid amount", errGroup: "Select a group",
+    errMember: "Include at least one member", errSum: (a) => `Amounts must sum to ${a}`, errPct: "Percentages must sum to 100%",
+    saveExpense: "Save Expense", updateExpense: "Update Expense",
+    newGroup: "New Group", groupNamePh: "Group name…", color: "Color", members: "Members",
+    addMember: "Add new member", createGroup: "Create Group",
+    settleUp: "Settle Up", allClear: "You're all clear!", nothingSettle: "Nothing to settle in this group",
+    pay: (n) => `Pay ${n}`, paying: (n) => `Paying ${n}`, amount: "Amount", full: "Full", markSettled: (a) => `✓ Mark ${a} as settled`,
+    paidWord: "paid", youPaid: "you paid", yourShareN: (a) => `your share ${a}`, notIncluded: "not included",
+    splitDetails: "Split details", edit: "Edit", del: "Delete",
+    tabExpenses: "Expenses", tabBalances: "Balances", tabAnalytics: "Analytics",
+    membersExpenses: (m, e) => `${m} members · ${e} expenses`,
+    stTotal: "Total", stYouPaid: "You paid", stYourShare: "Your share",
+    addExpenseBtn: "+ Add expense", allSettled: "All settled up!", everyoneEven: "Everyone is even",
+    memberBalances: "Member balances", spendByCat: "Spending by category", whoSpent: "Who spent what",
+    confirmDelGroup: (n) => `Delete "${n}"? This removes its expenses and any linked transactions.`,
+    settle: "Settle →",
+    navGroups: "👥 Groups", navFriends: "◎ Friends", navActivity: "◈ Activity",
+    netBalance: "Your net balance", othersOwe: "others owe you", youOweOthers: "you owe others",
+    acrossGroups: (n) => `across ${n} groups`, newGroupBtn: "👥 New Group",
+    totalMembers: (t, m) => `${t} total · ${m} members`,
+    youreOwed: "You're owed", youOwe: "You owe", settled: "Settled", even: "Even",
+    owedToYou: "Owed to you", owesYou: "owes you", sharedGroups: (n) => `${n} shared group${n !== 1 ? "s" : ""}`,
+    tExpAdded: "Expense added ✓", tExpUpdated: "Expense updated ✓", tExpRemoved: "Expense removed",
+    tGroupCreated: "Group created!", tGroupDeleted: "Group deleted", tSettled: "Settled up! 🎉",
+    actAdded: (u, d, a, g) => `${u} added "${d}" (${a}) in ${g}`,
+    actSettled: (u, a, to) => `${u} settled ${a}${to ? ` with ${to}` : ""}`,
+    actGroupCreated: (n) => `Group "${n}" was created`,
+    someone: "Someone", aGroup: "a group",
+  },
+  TH: {
+    noGroups: "ยังไม่มีกลุ่ม", noGroupsSub: "สร้างกลุ่มเพื่อเริ่มติดตามค่าใช้จ่ายร่วมกัน",
+    noExpenses: "ยังไม่มีรายการ", noExpensesSub: "เพิ่มรายการแรกเพื่อเริ่มต้น",
+    noData: "ยังไม่มีข้อมูล", noDataSub: "เพิ่มรายการเพื่อดูสถิติ",
+    noFriends: "ยังไม่มีเพื่อน", noFriendsSub: "เพิ่มสมาชิกในกลุ่มเพื่อแสดงที่นี่",
+    noActivity: "ยังไม่มีกิจกรรม", noActivitySub: "ประวัติค่าใช้จ่ายจะแสดงที่นี่",
+    balanced: "✓ สมดุลแล้ว", remaining: (v) => `เหลือ: ${v}`,
+    addExpense: "เพิ่มรายการ", editExpense: "แก้ไขรายการ", quickAdd: "✨ เพิ่มด่วน",
+    quickAddPh: 'เช่น "มื้อเย็น ฿1200 กับ อ้อม"', parse: "แยก", whatFor: "รายการนี้คืออะไร?",
+    group: "กลุ่ม", date: "วันที่", category: "หมวดหมู่", paidBy: "ผู้จ่าย", splitMethod: "วิธีหาร",
+    mEqual: "เท่ากัน", mCustom: "กำหนดเอง", mPercent: "%", mShares: "สัดส่วน",
+    errDesc: "กรอกรายละเอียด", errAmount: "กรอกจำนวนเงินที่ถูกต้อง", errGroup: "เลือกกลุ่ม",
+    errMember: "เลือกสมาชิกอย่างน้อยหนึ่งคน", errSum: (a) => `ยอดรวมต้องเท่ากับ ${a}`, errPct: "เปอร์เซ็นต์ต้องรวมได้ 100%",
+    saveExpense: "บันทึกรายการ", updateExpense: "อัปเดตรายการ",
+    newGroup: "กลุ่มใหม่", groupNamePh: "ชื่อกลุ่ม…", color: "สี", members: "สมาชิก",
+    addMember: "เพิ่มสมาชิกใหม่", createGroup: "สร้างกลุ่ม",
+    settleUp: "ชำระยอด", allClear: "คุณเคลียร์หมดแล้ว!", nothingSettle: "ไม่มียอดต้องชำระในกลุ่มนี้",
+    pay: (n) => `จ่ายให้ ${n}`, paying: (n) => `กำลังจ่ายให้ ${n}`, amount: "จำนวน", full: "เต็มจำนวน", markSettled: (a) => `✓ ทำเครื่องหมายชำระ ${a}`,
+    paidWord: "จ่าย", youPaid: "คุณจ่าย", yourShareN: (a) => `ส่วนของคุณ ${a}`, notIncluded: "ไม่ได้ร่วม",
+    splitDetails: "รายละเอียดการหาร", edit: "แก้ไข", del: "ลบ",
+    tabExpenses: "รายการ", tabBalances: "ยอดคงเหลือ", tabAnalytics: "สถิติ",
+    membersExpenses: (m, e) => `${m} สมาชิก · ${e} รายการ`,
+    stTotal: "ทั้งหมด", stYouPaid: "คุณจ่าย", stYourShare: "ส่วนของคุณ",
+    addExpenseBtn: "+ เพิ่มรายการ", allSettled: "ชำระครบแล้ว!", everyoneEven: "ทุกคนเท่ากันแล้ว",
+    memberBalances: "ยอดของสมาชิก", spendByCat: "ค่าใช้จ่ายตามหมวดหมู่", whoSpent: "ใครจ่ายเท่าไหร่",
+    confirmDelGroup: (n) => `ลบ "${n}"? การกระทำนี้จะลบรายการและธุรกรรมที่เชื่อมโยงทั้งหมด`,
+    settle: "ชำระ →",
+    navGroups: "👥 กลุ่ม", navFriends: "◎ เพื่อน", navActivity: "◈ กิจกรรม",
+    netBalance: "ยอดสุทธิของคุณ", othersOwe: "คนอื่นเป็นหนี้คุณ", youOweOthers: "คุณเป็นหนี้คนอื่น",
+    acrossGroups: (n) => `จาก ${n} กลุ่ม`, newGroupBtn: "👥 กลุ่มใหม่",
+    totalMembers: (t, m) => `${t} ทั้งหมด · ${m} สมาชิก`,
+    youreOwed: "คุณจะได้รับ", youOwe: "คุณต้องจ่าย", settled: "ชำระแล้ว", even: "เท่ากัน",
+    owedToYou: "ยอดที่จะได้รับ", owesYou: "เป็นหนี้คุณ", sharedGroups: (n) => `${n} กลุ่มร่วมกัน`,
+    tExpAdded: "เพิ่มรายการแล้ว ✓", tExpUpdated: "อัปเดตรายการแล้ว ✓", tExpRemoved: "ลบรายการแล้ว",
+    tGroupCreated: "สร้างกลุ่มแล้ว!", tGroupDeleted: "ลบกลุ่มแล้ว", tSettled: "ชำระยอดแล้ว! 🎉",
+    actAdded: (u, d, a, g) => `${u} เพิ่ม "${d}" (${a}) ใน ${g}`,
+    actSettled: (u, a, to) => `${u} ชำระ ${a}${to ? ` ให้ ${to}` : ""}`,
+    actGroupCreated: (n) => `สร้างกลุ่ม "${n}" แล้ว`,
+    someone: "บางคน", aGroup: "กลุ่ม",
+  },
+};
+
 // ─── SplitPro Shared Atoms ───────────────────────────────────────────────────
 const SP_FONT = "'IBM Plex Sans Thai','Kanit',-apple-system,sans-serif";
 const SP_MONO = "'IBM Plex Mono','DM Mono',monospace";
@@ -158,27 +232,30 @@ function SpEmpty({ icon, title, sub }) {
   );
 }
 
-function SpValidationBar({ val, target, suffix = "" }) {
+function SpValidationBar({ val, target, suffix = "", L }) {
   const ok = Math.abs(val - target) < 1;
   return (
     <div style={{ marginTop: 10, padding: "8px 12px", background: ok ? "#F0FDF4" : "#FFF1F2", borderRadius: 10, border: `1px solid ${ok ? "#BBF7D0" : "#FECDD3"}` }}>
-      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: ok ? "#15803D" : "#BE123C", fontFamily: SP_FONT }}>{ok ? "✓ Balanced" : `Remaining: ${(target - val).toFixed(0)}${suffix}`}</p>
+      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: ok ? "#15803D" : "#BE123C", fontFamily: SP_FONT }}>{ok ? L.balanced : L.remaining(`${(target - val).toFixed(0)}${suffix}`)}</p>
     </div>
   );
 }
 
 // ─── AddExpenseModal ──────────────────────────────────────────────────────────
-function SpAddExpenseModal({ data, me, activeGid, onSave, onClose }) {
+function SpAddExpenseModal({ data, me, activeGid, editExpense, onSave, onClose, L }) {
+  const ed = editExpense || null;
   const [nlText,     setNlText]     = useState("");
-  const [desc,       setDesc]       = useState("");
-  const [amount,     setAmount]     = useState("");
-  const [category,   setCategory]   = useState("Food");
-  const [paidBy,     setPaidBy]     = useState(me?.id || "");
-  const [groupId,    setGroupId]    = useState(activeGid || data.groups[0]?.id || "");
-  const [date,       setDate]       = useState(_spTodayStr());
-  const [method,     setMethod]     = useState("equal");
-  const [included,   setIncluded]   = useState([]);
-  const [customAmts, setCustomAmts] = useState({});
+  const [desc,       setDesc]       = useState(ed?.description || "");
+  const [amount,     setAmount]     = useState(ed ? String(ed.amount) : "");
+  const [category,   setCategory]   = useState(ed?.category || "Food");
+  const [paidBy,     setPaidBy]     = useState(ed?.paidBy || me?.id || "");
+  const [groupId,    setGroupId]    = useState(ed?.groupId || activeGid || data.groups[0]?.id || "");
+  const [date,       setDate]       = useState(ed?.date || _spTodayStr());
+  // Editing prefills exact per-member amounts via the "custom" method so the
+  // original split is preserved precisely regardless of how it was created.
+  const [method,     setMethod]     = useState(ed ? "custom" : "equal");
+  const [included,   setIncluded]   = useState(ed ? ed.splits.map(s => s.id) : []);
+  const [customAmts, setCustomAmts] = useState(ed ? Object.fromEntries(ed.splits.map(s => [s.id, String(s.amount)])) : {});
   const [percents,   setPercents]   = useState({});
   const [shares,     setShares]     = useState({});
   const [error,      setError]      = useState("");
@@ -212,28 +289,28 @@ function SpAddExpenseModal({ data, me, activeGid, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    if (!desc.trim()) { setError("Enter a description"); return; }
-    if (amt <= 0)     { setError("Enter a valid amount"); return; }
-    if (!groupId)     { setError("Select a group"); return; }
-    if (included.length === 0) { setError("Include at least one member"); return; }
-    if (method === "custom" && Math.abs(totalCustom - amt) > 1) { setError(`Amounts must sum to ${_spFmt(amt)}`); return; }
-    if (method === "percent" && Math.abs(totalPct - 100) > 1)   { setError(`Percentages must sum to 100%`); return; }
-    onSave({ id: _spUid(), groupId, description: desc.trim(), amount: amt, category, paidBy, date, splits: getSplits(), createdAt: _spNowISO(), note: "" });
+    if (!desc.trim()) { setError(L.errDesc); return; }
+    if (amt <= 0)     { setError(L.errAmount); return; }
+    if (!groupId)     { setError(L.errGroup); return; }
+    if (included.length === 0) { setError(L.errMember); return; }
+    if (method === "custom" && Math.abs(totalCustom - amt) > 1) { setError(L.errSum(_spFmt(amt))); return; }
+    if (method === "percent" && Math.abs(totalPct - 100) > 1)   { setError(L.errPct); return; }
+    onSave({ id: ed?.id || _spUid(), groupId, description: desc.trim(), amount: amt, category, paidBy, date, splits: getSplits(), createdAt: ed?.createdAt || _spNowISO(), note: ed?.note || "" });
   };
 
   const indigo = "#4F46E5";
   const indigoLight = "#EEF2FF";
 
   return (
-    <SpSheet onClose={onClose} title="Add Expense">
+    <SpSheet onClose={onClose} title={ed ? L.editExpense : L.addExpense}>
       {error && <div style={{ background: "#FFF1F2", border: "1px solid #FECDD3", borderRadius: 12, padding: "10px 14px", marginBottom: 14, fontSize: 13, fontWeight: 600, color: "#BE123C", fontFamily: SP_FONT }}>{error}</div>}
 
       {/* NLP */}
       <div style={{ background: "#F8F7F4", borderRadius: 16, padding: "12px 14px", marginBottom: 14, border: "1px solid #E2E8F0" }}>
-        <p style={{ margin: "0 0 7px", fontSize: 10, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: SP_FONT }}>✨ Quick add</p>
+        <p style={{ margin: "0 0 7px", fontSize: 10, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: SP_FONT }}>{L.quickAdd}</p>
         <div style={{ display: "flex", gap: 8 }}>
-          <input value={nlText} onChange={e => setNlText(e.target.value)} onKeyDown={e => e.key === "Enter" && nlText && handleNLP()} placeholder='e.g. "Dinner ฿1200 with Aom"' style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 13, color: "#0F172A", fontFamily: SP_FONT }} />
-          {nlText && <button onClick={handleNLP} style={{ background: indigo, color: "#fff", border: "none", borderRadius: 9, padding: "5px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: SP_FONT }}>Parse</button>}
+          <input value={nlText} onChange={e => setNlText(e.target.value)} onKeyDown={e => e.key === "Enter" && nlText && handleNLP()} placeholder={L.quickAddPh} style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 13, color: "#0F172A", fontFamily: SP_FONT }} />
+          {nlText && <button onClick={handleNLP} style={{ background: indigo, color: "#fff", border: "none", borderRadius: 9, padding: "5px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: SP_FONT }}>{L.parse}</button>}
         </div>
       </div>
 
@@ -243,26 +320,26 @@ function SpAddExpenseModal({ data, me, activeGid, onSave, onClose }) {
           <span style={{ fontSize: 28, fontWeight: 700, color: "#94A3B8", fontFamily: SP_MONO }}>฿</span>
           <input ref={amtRef} type="text" inputMode="decimal" value={amount} onChange={e => { setAmount(e.target.value); setError(""); }} placeholder="0" style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 40, fontWeight: 700, color: "#0F172A", fontFamily: SP_MONO, letterSpacing: "-2px" }} />
         </div>
-        <input value={desc} onChange={e => { setDesc(e.target.value); setError(""); }} placeholder="What's this for?" style={{ width: "100%", background: "transparent", border: "none", borderTop: "1px solid #E2E8F0", outline: "none", padding: "12px 0 0", fontSize: 15, fontWeight: 600, color: "#0F172A", fontFamily: SP_FONT, boxSizing: "border-box" }} />
+        <input value={desc} onChange={e => { setDesc(e.target.value); setError(""); }} placeholder={L.whatFor} style={{ width: "100%", background: "transparent", border: "none", borderTop: "1px solid #E2E8F0", outline: "none", padding: "12px 0 0", fontSize: 15, fontWeight: 600, color: "#0F172A", fontFamily: SP_FONT, boxSizing: "border-box" }} />
       </div>
 
       {/* Group + Date */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
         <div>
-          <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: SP_FONT }}>Group</p>
+          <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: SP_FONT }}>{L.group}</p>
           <select value={groupId} onChange={e => { setGroupId(e.target.value); setIncluded([]); }} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1.5px solid #E2E8F0", fontSize: 13, fontFamily: SP_FONT, color: "#0F172A", outline: "none", background: "#F8F7F4" }}>
             {data.groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
           </select>
         </div>
         <div>
-          <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: SP_FONT }}>Date</p>
+          <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: SP_FONT }}>{L.date}</p>
           <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1.5px solid #E2E8F0", fontSize: 13, fontFamily: SP_FONT, color: "#0F172A", outline: "none", background: "#F8F7F4", boxSizing: "border-box" }} />
         </div>
       </div>
 
       {/* Category pills */}
       <div style={{ marginBottom: 12 }}>
-        <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: SP_FONT }}>Category</p>
+        <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: SP_FONT }}>{L.category}</p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {SP_CATS.map(c => (
             <button key={c.v} onClick={() => setCategory(c.v)} style={{ padding: "6px 12px", borderRadius: 99, border: `1.5px solid ${category === c.v ? c.color : "transparent"}`, background: category === c.v ? `${c.color}22` : "#F8F7F4", color: category === c.v ? c.color : "#64748B", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: SP_FONT, display: "flex", alignItems: "center", gap: 5 }}>
@@ -275,7 +352,7 @@ function SpAddExpenseModal({ data, me, activeGid, onSave, onClose }) {
       {/* Paid by */}
       {members.length > 0 && (
         <div style={{ marginBottom: 12 }}>
-          <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: SP_FONT }}>Paid by</p>
+          <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: SP_FONT }}>{L.paidBy}</p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {members.map(m => (
               <button key={m.id} onClick={() => setPaidBy(m.id)} style={{ padding: "7px 14px", borderRadius: 99, border: `1.5px solid ${paidBy === m.id ? m.color : "transparent"}`, background: paidBy === m.id ? `${m.color}22` : "#F8F7F4", color: paidBy === m.id ? m.color : "#64748B", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: SP_FONT, display: "flex", alignItems: "center", gap: 6 }}>
@@ -289,9 +366,9 @@ function SpAddExpenseModal({ data, me, activeGid, onSave, onClose }) {
       {/* Split method */}
       {members.length > 0 && (
         <div style={{ background: "#F8F7F4", borderRadius: 20, padding: "16px", marginBottom: 16, border: "1px solid #E2E8F0" }}>
-          <p style={{ margin: "0 0 10px", fontSize: 10, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: SP_FONT }}>Split method</p>
+          <p style={{ margin: "0 0 10px", fontSize: 10, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: SP_FONT }}>{L.splitMethod}</p>
           <div style={{ display: "flex", gap: 4, background: "#E2E8F0", borderRadius: 12, padding: 3, marginBottom: 14 }}>
-            {[["equal","Equal"],["custom","Custom"],["percent","%"],["shares","Shares"]].map(([v,l]) => (
+            {[["equal",L.mEqual],["custom",L.mCustom],["percent",L.mPercent],["shares",L.mShares]].map(([v,l]) => (
               <button key={v} onClick={() => setMethod(v)} style={{ flex: 1, padding: "7px 4px", borderRadius: 10, border: "none", fontFamily: SP_FONT, fontSize: 11, fontWeight: 700, cursor: "pointer", background: method === v ? "#FFFFFF" : "transparent", color: method === v ? "#0F172A" : "#94A3B8", boxShadow: method === v ? "0 1px 6px rgba(15,23,42,0.10)" : "none", transition: "all 0.15s" }}>{l}</button>
             ))}
           </div>
@@ -318,13 +395,13 @@ function SpAddExpenseModal({ data, me, activeGid, onSave, onClose }) {
               </div>
             );
           })}
-          {method === "custom"  && <SpValidationBar val={totalCustom} target={amt} />}
-          {method === "percent" && <SpValidationBar val={totalPct} target={100} suffix="%" />}
+          {method === "custom"  && <SpValidationBar val={totalCustom} target={amt} L={L} />}
+          {method === "percent" && <SpValidationBar val={totalPct} target={100} suffix="%" L={L} />}
         </div>
       )}
 
       <button onClick={handleSave} style={{ width: "100%", padding: "15px", borderRadius: 18, border: "none", background: indigo, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: SP_FONT, boxShadow: "0 8px 24px rgba(79,70,229,0.3)", letterSpacing: "-0.3px" }}>
-        Save Expense
+        {ed ? L.updateExpense : L.saveExpense}
       </button>
     </SpSheet>
   );
@@ -334,7 +411,7 @@ function SpAddExpenseModal({ data, me, activeGid, onSave, onClose }) {
 const SP_EMOJIS = ["✈️","🏠","🎉","🍜","🏕️","💼","🎓","🎮","🛍️","💪","🏖️","🎸","🍕","🎯","🌴"];
 const SP_COLORS = ["#FF6B6B","#4ECDC4","#FFB347","#A29BFE","#74B9FF","#55EFC4","#FDCB6E","#E17055","#4F46E5","#00CEC9"];
 
-function SpAddGroupModal({ data, me, onSave, onClose }) {
+function SpAddGroupModal({ data, me, onSave, onClose, L }) {
   const [name,    setName]    = useState("");
   const [emoji,   setEmoji]   = useState("✈️");
   const [color,   setColor]   = useState("#4F46E5");
@@ -361,13 +438,13 @@ function SpAddGroupModal({ data, me, onSave, onClose }) {
   };
 
   return (
-    <SpSheet onClose={onClose} title="New Group">
+    <SpSheet onClose={onClose} title={L.newGroup}>
       <div style={{ background: "#FFFFFF", borderRadius: 18, padding: "16px", marginBottom: 12, border: "1.5px solid #E2E8F0", display: "flex", gap: 12, alignItems: "center" }}>
         <button onClick={() => setEmoji(SP_EMOJIS[(SP_EMOJIS.indexOf(emoji) + 1) % SP_EMOJIS.length])} style={{ width: 52, height: 52, borderRadius: 16, background: `${color}22`, border: `1.5px solid ${color}44`, fontSize: 24, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>{emoji}</button>
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="Group name…" autoFocus style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 17, fontWeight: 700, color: "#0F172A", fontFamily: SP_FONT }} />
+        <input value={name} onChange={e => setName(e.target.value)} placeholder={L.groupNamePh} autoFocus style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 17, fontWeight: 700, color: "#0F172A", fontFamily: SP_FONT }} />
       </div>
       <div style={{ marginBottom: 14 }}>
-        <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: SP_FONT }}>Color</p>
+        <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: SP_FONT }}>{L.color}</p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {SP_COLORS.map(c => (
             <button key={c} onClick={() => setColor(c)} style={{ width: 32, height: 32, borderRadius: 99, background: c, border: color === c ? "3px solid #fff" : "3px solid transparent", outline: color === c ? `3px solid ${c}` : "none", cursor: "pointer", transition: "all 0.15s" }} />
@@ -375,7 +452,7 @@ function SpAddGroupModal({ data, me, onSave, onClose }) {
         </div>
       </div>
       <div style={{ background: "#F8F7F4", borderRadius: 18, padding: "16px", marginBottom: 16, border: "1px solid #E2E8F0" }}>
-        <p style={{ margin: "0 0 12px", fontSize: 10, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: SP_FONT }}>Members</p>
+        <p style={{ margin: "0 0 12px", fontSize: 10, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: SP_FONT }}>{L.members}</p>
         {allMembers.map(m => (
           <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 9 }}>
             <button onClick={() => setMembers(p => p.includes(m.id) ? p.filter(x => x !== m.id) : [...p, m.id])} style={{ width: 22, height: 22, borderRadius: 7, border: `1.5px solid ${members.includes(m.id) ? m.color : "#E2E8F0"}`, background: members.includes(m.id) ? m.color : "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
@@ -386,19 +463,19 @@ function SpAddGroupModal({ data, me, onSave, onClose }) {
           </div>
         ))}
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-          <input value={newMem} onChange={e => setNewMem(e.target.value)} onKeyDown={e => e.key === "Enter" && addTempMember()} placeholder="Add new member" style={{ flex: 1, padding: "10px 13px", borderRadius: 12, border: "1.5px solid #E2E8F0", fontSize: 13, fontFamily: SP_FONT, color: "#0F172A", outline: "none", background: "#FFFFFF" }} />
+          <input value={newMem} onChange={e => setNewMem(e.target.value)} onKeyDown={e => e.key === "Enter" && addTempMember()} placeholder={L.addMember} style={{ flex: 1, padding: "10px 13px", borderRadius: 12, border: "1.5px solid #E2E8F0", fontSize: 13, fontFamily: SP_FONT, color: "#0F172A", outline: "none", background: "#FFFFFF" }} />
           <button onClick={addTempMember} style={{ width: 40, height: 40, borderRadius: 12, border: "none", background: "#4F46E5", color: "#fff", cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>+</button>
         </div>
       </div>
       <button onClick={save} disabled={!name.trim()} style={{ width: "100%", padding: "15px", borderRadius: 18, border: "none", background: name.trim() ? "#4F46E5" : "#E2E8F0", color: "#fff", fontSize: 15, fontWeight: 700, cursor: name.trim() ? "pointer" : "not-allowed", fontFamily: SP_FONT, boxShadow: name.trim() ? "0 8px 24px rgba(79,70,229,0.3)" : "none" }}>
-        Create Group
+        {L.createGroup}
       </button>
     </SpSheet>
   );
 }
 
 // ─── SettleModal ──────────────────────────────────────────────────────────────
-function SpSettleModal({ data, me, gid, allBalances, onSave, onClose }) {
+function SpSettleModal({ data, me, gid, allBalances, onSave, onClose, L }) {
   const debts    = allBalances[gid]?.debts || [];
   const myDebts  = debts.filter(d => d.from === me?.id);
   const [selected, setSelected] = useState(myDebts[0] || null);
@@ -412,12 +489,12 @@ function SpSettleModal({ data, me, gid, allBalances, onSave, onClose }) {
   const to = data.members.find(m => m.id === selected?.to);
 
   return (
-    <SpSheet onClose={onClose} title="Settle Up">
+    <SpSheet onClose={onClose} title={L.settleUp}>
       {myDebts.length === 0 ? (
         <div style={{ textAlign: "center", padding: "32px" }}>
           <div style={{ fontSize: 48, marginBottom: 10 }}>🎉</div>
-          <p style={{ fontSize: 16, fontWeight: 700, color: "#15803D", margin: "0 0 4px", fontFamily: SP_FONT }}>You're all clear!</p>
-          <p style={{ fontSize: 12, color: "#94A3B8", margin: 0, fontFamily: SP_FONT }}>Nothing to settle in this group</p>
+          <p style={{ fontSize: 16, fontWeight: 700, color: "#15803D", margin: "0 0 4px", fontFamily: SP_FONT }}>{L.allClear}</p>
+          <p style={{ fontSize: 12, color: "#94A3B8", margin: 0, fontFamily: SP_FONT }}>{L.nothingSettle}</p>
         </div>
       ) : (
         <>
@@ -427,7 +504,7 @@ function SpSettleModal({ data, me, gid, allBalances, onSave, onClose }) {
               <div key={`${d.from}-${d.to}`} onClick={() => setSelected(d)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderRadius: 16, marginBottom: 8, border: `2px solid ${selected?.to === d.to ? "#4F46E5" : "#E2E8F0"}`, background: selected?.to === d.to ? "#EEF2FF" : "#FFFFFF", cursor: "pointer" }}>
                 <SpAvatar m={toM} size={40} />
                 <div style={{ flex: 1 }}>
-                  <p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 700, color: "#0F172A", fontFamily: SP_FONT }}>Pay {toM?.name}</p>
+                  <p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 700, color: "#0F172A", fontFamily: SP_FONT }}>{L.pay(toM?.name)}</p>
                   <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#EF4444", fontFamily: SP_MONO }}>{_spFmt(d.amount)}</p>
                 </div>
                 {selected?.to === d.to && <span style={{ fontSize: 14, color: "#4F46E5" }}>✓</span>}
@@ -436,16 +513,16 @@ function SpSettleModal({ data, me, gid, allBalances, onSave, onClose }) {
           })}
           {selected && (
             <div style={{ background: "#F8F7F4", borderRadius: 20, padding: "20px", marginTop: 8, border: "1px solid #E2E8F0" }}>
-              <p style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 600, color: "#64748B", fontFamily: SP_FONT }}>Paying {to?.name}</p>
+              <p style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 600, color: "#64748B", fontFamily: SP_FONT }}>{L.paying(to?.name)}</p>
               <div style={{ marginBottom: 14 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span style={{ fontSize: 12, color: "#94A3B8", fontFamily: SP_FONT }}>Amount: {_spFmt(partial)}</span>
-                  <span style={{ fontSize: 12, color: "#94A3B8", fontFamily: SP_FONT }}>Full: {_spFmt(selected.amount)}</span>
+                  <span style={{ fontSize: 12, color: "#94A3B8", fontFamily: SP_FONT }}>{L.amount}: {_spFmt(partial)}</span>
+                  <span style={{ fontSize: 12, color: "#94A3B8", fontFamily: SP_FONT }}>{L.full}: {_spFmt(selected.amount)}</span>
                 </div>
                 <input type="range" min={1} max={selected.amount} value={partial} onChange={e => setPartial(Number(e.target.value))} step={1} style={{ width: "100%", accentColor: "#4F46E5" }} />
               </div>
               <button onClick={settle} style={{ width: "100%", padding: "14px", borderRadius: 16, border: "none", background: "#10B981", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: SP_FONT, boxShadow: "0 8px 24px rgba(16,185,129,0.3)" }}>
-                ✓ Mark {_spFmt(partial)} as settled
+                {L.markSettled(_spFmt(partial))}
               </button>
             </div>
           )}
@@ -456,7 +533,7 @@ function SpSettleModal({ data, me, gid, allBalances, onSave, onClose }) {
 }
 
 // ─── GroupExpenseRow ──────────────────────────────────────────────────────────
-function SpExpenseRow({ e, data, me, onDelete }) {
+function SpExpenseRow({ e, data, me, onEdit, onDelete, L, lang }) {
   const [expanded, setExpanded] = useState(false);
   const cat   = spGetCat(e.category);
   const payer = data.members.find(m => m.id === e.paidBy);
@@ -469,16 +546,16 @@ function SpExpenseRow({ e, data, me, onDelete }) {
         <div style={{ width: 40, height: 40, borderRadius: 13, background: `${cat.color}22`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, border: `1px solid ${cat.color}33` }}>{cat.icon}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 600, color: "#0F172A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: SP_FONT }}>{e.description}</p>
-          <p style={{ margin: 0, fontSize: 11, color: "#94A3B8", fontFamily: SP_FONT }}>{payer?.name} paid · {_spFmtDate(e.date)}</p>
+          <p style={{ margin: 0, fontSize: 11, color: "#94A3B8", fontFamily: SP_FONT }}>{payer?.name} {L.paidWord} · {_spFmtDate(e.date, lang)}</p>
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           <p style={{ margin: "0 0 2px", fontSize: 15, fontWeight: 700, color: "#0F172A", fontFamily: SP_MONO }}>{_spFmt(e.amount)}</p>
-          <p style={{ margin: 0, fontSize: 10, color: iMePaid ? "#15803D" : myShare > 0 ? "#EF4444" : "#94A3B8", fontWeight: 700, fontFamily: SP_FONT }}>{iMePaid ? "you paid" : myShare > 0 ? `your share ${_spFmt(myShare)}` : "not included"}</p>
+          <p style={{ margin: 0, fontSize: 10, color: iMePaid ? "#15803D" : myShare > 0 ? "#EF4444" : "#94A3B8", fontWeight: 700, fontFamily: SP_FONT }}>{iMePaid ? L.youPaid : myShare > 0 ? L.yourShareN(_spFmt(myShare)) : L.notIncluded}</p>
         </div>
       </div>
       {expanded && (
         <div style={{ padding: "0 14px 13px", borderTop: "1px solid #F1F5F9" }}>
-          <p style={{ margin: "10px 0 7px", fontSize: 10, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: SP_FONT }}>Split details</p>
+          <p style={{ margin: "10px 0 7px", fontSize: 10, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: SP_FONT }}>{L.splitDetails}</p>
           {e.splits.map(s => {
             const m = data.members.find(x => x.id === s.id);
             return (
@@ -488,7 +565,10 @@ function SpExpenseRow({ e, data, me, onDelete }) {
               </div>
             );
           })}
-          <button onClick={() => onDelete(e.id)} style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 9, border: "none", background: "#FFF1F2", color: "#EF4444", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: SP_FONT }}>🗑 Delete expense</button>
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <button onClick={() => onEdit(e)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 9, border: "none", background: "#EEF2FF", color: "#4F46E5", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: SP_FONT }}>✏️ {L.edit}</button>
+            <button onClick={() => onDelete(e.id)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 9, border: "none", background: "#FFF1F2", color: "#EF4444", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: SP_FONT }}>🗑 {L.del}</button>
+          </div>
         </div>
       )}
     </div>
@@ -496,7 +576,7 @@ function SpExpenseRow({ e, data, me, onDelete }) {
 }
 
 // ─── GroupDetailScreen ────────────────────────────────────────────────────────
-function SpGroupDetail({ data, me, gid, allBalances, onBack, onAddExpense, onSettle, onDelete }) {
+function SpGroupDetail({ data, me, gid, allBalances, onBack, onAddExpense, onEditExpense, onSettle, onDelete, onDeleteGroup, L, lang }) {
   const [tab, setTab] = useState("expenses");
   const g = data.groups.find(x => x.id === gid);
   if (!g) return null;
@@ -511,12 +591,12 @@ function SpGroupDetail({ data, me, gid, allBalances, onBack, onAddExpense, onSet
   const grouped = useMemo(() => {
     const g2 = {};
     [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(e => {
-      const k = _spFmtDate(e.date);
+      const k = _spFmtDate(e.date, lang);
       if (!g2[k]) g2[k] = [];
       g2[k].push(e);
     });
     return g2;
-  }, [expenses]);
+  }, [expenses, lang]);
 
   const catSpend = useMemo(() => {
     const r = {};
@@ -530,22 +610,27 @@ function SpGroupDetail({ data, me, gid, allBalances, onBack, onAddExpense, onSet
     <div style={{ position: "fixed", inset: 0, zIndex: 400, background: "#F8F7F4", overflowY: "auto", fontFamily: SP_FONT }}>
       {/* Cover */}
       <div style={{ background: `linear-gradient(160deg,${g.color}44 0%,#F8F7F4 60%)`, padding: "44px 20px 0", position: "relative" }}>
-        <button onClick={onBack} style={{ width: 38, height: 38, borderRadius: 13, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", border: "1px solid #E2E8F0", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
-          <span style={{ fontSize: 16, color: "#0F172A" }}>←</span>
-        </button>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <button onClick={onBack} style={{ width: 38, height: 38, borderRadius: 13, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", border: "1px solid #E2E8F0", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 16, color: "#0F172A" }}>←</span>
+          </button>
+          <button onClick={() => { if (window.confirm(L.confirmDelGroup(g.name.replace(/^[^\w\s]+\s*/, "")))) onDeleteGroup(gid); }} style={{ width: 38, height: 38, borderRadius: 13, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", border: "1px solid #FECDD3", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 15, color: "#EF4444" }}>🗑</span>
+          </button>
+        </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
           <div style={{ width: 56, height: 56, borderRadius: 20, background: `linear-gradient(135deg,${g.color}44,${g.color}77)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0, boxShadow: `0 8px 24px ${g.color}44` }}>{g.emoji}</div>
           <div>
             <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 700, color: "#0F172A", letterSpacing: "-0.5px", fontFamily: SP_FONT }}>{g.name.replace(/^[^\w\s]+\s*/, "")}</h2>
-            <p style={{ margin: 0, fontSize: 12, color: "#64748B", fontFamily: SP_FONT }}>{gMembers.length} members · {expenses.length} expenses</p>
+            <p style={{ margin: 0, fontSize: 12, color: "#64748B", fontFamily: SP_FONT }}>{L.membersExpenses(gMembers.length, expenses.length)}</p>
           </div>
         </div>
         {/* Stats */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 16 }}>
           {[
-            { l: "Total",      val: _spFmt(total),   c: "#0F172A",  bg: `${g.color}18` },
-            { l: "You paid",   val: _spFmt(mePaid),  c: indigo,     bg: "#EEF2FF" },
-            { l: "Your share", val: _spFmt(meShare),  c: meShare > mePaid ? "#EF4444" : "#15803D", bg: meShare > mePaid ? "#FFF1F2" : "#F0FDF4" },
+            { l: L.stTotal,     val: _spFmt(total),   c: "#0F172A",  bg: `${g.color}18` },
+            { l: L.stYouPaid,   val: _spFmt(mePaid),  c: indigo,     bg: "#EEF2FF" },
+            { l: L.stYourShare, val: _spFmt(meShare),  c: meShare > mePaid ? "#EF4444" : "#15803D", bg: meShare > mePaid ? "#FFF1F2" : "#F0FDF4" },
           ].map(s => (
             <div key={s.l} style={{ background: s.bg, borderRadius: 14, padding: "11px 12px", border: "1px solid #E2E8F0" }}>
               <p style={{ margin: "0 0 4px", fontSize: 8, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: SP_FONT }}>{s.l}</p>
@@ -555,8 +640,8 @@ function SpGroupDetail({ data, me, gid, allBalances, onBack, onAddExpense, onSet
         </div>
         {/* Tabs */}
         <div style={{ display: "flex", gap: 2, background: "rgba(0,0,0,0.05)", borderRadius: 14, padding: 3 }}>
-          {["expenses","balances","analytics"].map(t => (
-            <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: "9px", borderRadius: 12, border: "none", fontFamily: SP_FONT, fontSize: 11, fontWeight: 700, cursor: "pointer", background: tab === t ? "#FFFFFF" : "transparent", color: tab === t ? "#0F172A" : "#94A3B8", boxShadow: tab === t ? "0 2px 8px rgba(15,23,42,0.08)" : "none", textTransform: "capitalize", transition: "all 0.15s" }}>{t}</button>
+          {[["expenses",L.tabExpenses],["balances",L.tabBalances],["analytics",L.tabAnalytics]].map(([t,lbl]) => (
+            <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: "9px", borderRadius: 12, border: "none", fontFamily: SP_FONT, fontSize: 11, fontWeight: 700, cursor: "pointer", background: tab === t ? "#FFFFFF" : "transparent", color: tab === t ? "#0F172A" : "#94A3B8", boxShadow: tab === t ? "0 2px 8px rgba(15,23,42,0.08)" : "none", transition: "all 0.15s" }}>{lbl}</button>
           ))}
         </div>
       </div>
@@ -566,13 +651,13 @@ function SpGroupDetail({ data, me, gid, allBalances, onBack, onAddExpense, onSet
         {tab === "expenses" && (
           <>
             <button onClick={onAddExpense} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "13px", borderRadius: 16, border: `1.5px dashed ${indigo}55`, background: "#EEF2FF", color: indigo, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: SP_FONT, marginBottom: 16 }}>
-              + Add expense
+              {L.addExpenseBtn}
             </button>
-            {expenses.length === 0 && <SpEmpty icon="💸" title="No expenses yet" sub="Add the first expense to get started" />}
+            {expenses.length === 0 && <SpEmpty icon="💸" title={L.noExpenses} sub={L.noExpensesSub} />}
             {Object.entries(grouped).map(([dateLabel, exps]) => (
               <div key={dateLabel}>
                 <p style={{ margin: "8px 0 8px 4px", fontSize: 11, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: SP_FONT }}>{dateLabel}</p>
-                {exps.map(e => <SpExpenseRow key={e.id} e={e} data={data} me={me} onDelete={onDelete} />)}
+                {exps.map(e => <SpExpenseRow key={e.id} e={e} data={data} me={me} onEdit={onEditExpense} onDelete={onDelete} L={L} lang={lang} />)}
               </div>
             ))}
           </>
@@ -584,8 +669,8 @@ function SpGroupDetail({ data, me, gid, allBalances, onBack, onAddExpense, onSet
             {debts.length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 20px", background: "#FFFFFF", borderRadius: 22, border: "1px solid #E2E8F0" }}>
                 <div style={{ fontSize: 48, marginBottom: 10 }}>🎉</div>
-                <p style={{ fontSize: 16, fontWeight: 700, color: "#15803D", margin: "0 0 4px", fontFamily: SP_FONT }}>All settled up!</p>
-                <p style={{ fontSize: 12, color: "#94A3B8", margin: 0, fontFamily: SP_FONT }}>Everyone is even</p>
+                <p style={{ fontSize: 16, fontWeight: 700, color: "#15803D", margin: "0 0 4px", fontFamily: SP_FONT }}>{L.allSettled}</p>
+                <p style={{ fontSize: 12, color: "#94A3B8", margin: 0, fontFamily: SP_FONT }}>{L.everyoneEven}</p>
               </div>
             ) : (
               <>
@@ -600,11 +685,11 @@ function SpGroupDetail({ data, me, gid, allBalances, onBack, onAddExpense, onSet
                         <p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 700, color: "#0F172A", fontFamily: SP_FONT }}>{from?.name} <span style={{ color: "#94A3B8", fontWeight: 500 }}>→</span> {to?.name}</p>
                         <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: isMe ? "#EF4444" : "#0F172A", fontFamily: SP_MONO }}>{_spFmt(d.amount)}</p>
                       </div>
-                      {isMe && <button onClick={() => onSettle(gid)} style={{ padding: "9px 16px", borderRadius: 99, border: "none", background: "#10B981", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: SP_FONT, boxShadow: "0 4px 14px rgba(16,185,129,0.3)" }}>Settle →</button>}
+                      {isMe && <button onClick={() => onSettle(gid)} style={{ padding: "9px 16px", borderRadius: 99, border: "none", background: "#10B981", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: SP_FONT, boxShadow: "0 4px 14px rgba(16,185,129,0.3)" }}>{L.settle}</button>}
                     </div>
                   );
                 })}
-                <p style={{ margin: "20px 0 10px 4px", fontSize: 11, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: SP_FONT }}>Member balances</p>
+                <p style={{ margin: "20px 0 10px 4px", fontSize: 11, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: SP_FONT }}>{L.memberBalances}</p>
                 {gMembers.map(m => {
                   const paid  = expenses.filter(e => e.paidBy === m.id).reduce((s, e) => s + e.amount, 0);
                   const share = expenses.reduce((s, e) => s + (e.splits.find(sp => sp.id === m.id)?.amount || 0), 0);
@@ -624,9 +709,9 @@ function SpGroupDetail({ data, me, gid, allBalances, onBack, onAddExpense, onSet
 
         {/* ANALYTICS TAB */}
         {tab === "analytics" && (
-          catSpend.length === 0 ? <SpEmpty icon="📊" title="No data yet" sub="Add expenses to see analytics" /> : (
+          catSpend.length === 0 ? <SpEmpty icon="📊" title={L.noData} sub={L.noDataSub} /> : (
             <div style={{ background: "#FFFFFF", borderRadius: 22, padding: "20px", marginBottom: 12, border: "1px solid #E2E8F0", boxShadow: "0 4px 24px rgba(15,23,42,0.06)" }}>
-              <p style={{ margin: "0 0 16px", fontSize: 14, fontWeight: 700, color: "#0F172A", fontFamily: SP_FONT }}>Spending by category</p>
+              <p style={{ margin: "0 0 16px", fontSize: 14, fontWeight: 700, color: "#0F172A", fontFamily: SP_FONT }}>{L.spendByCat}</p>
               {catSpend.map(([cat, amt]) => {
                 const c = spGetCat(cat);
                 const pct = total > 0 ? amt / total * 100 : 0;
@@ -642,7 +727,7 @@ function SpGroupDetail({ data, me, gid, allBalances, onBack, onAddExpense, onSet
                   </div>
                 );
               })}
-              <p style={{ margin: "20px 0 12px", fontSize: 14, fontWeight: 700, color: "#0F172A", fontFamily: SP_FONT }}>Who spent what</p>
+              <p style={{ margin: "20px 0 12px", fontSize: 14, fontWeight: 700, color: "#0F172A", fontFamily: SP_FONT }}>{L.whoSpent}</p>
               {gMembers.map(m => {
                 const paid = expenses.filter(e => e.paidBy === m.id).reduce((s, e) => s + e.amount, 0);
                 return (
@@ -665,7 +750,9 @@ function SpGroupDetail({ data, me, gid, allBalances, onBack, onAddExpense, onSet
 }
 
 // ─── GroupsTab (full tab rendered inside FinanceTracker) ─────────────────────
-function GroupsTab() {
+function GroupsTab({ profile, onLinkUpsert, onLinkDelete, language = "EN" }) {
+  const L = SP_T[language] || SP_T.EN;
+  const lang = language;
   SPDB.init();
   const [spData, setSpData] = useState(() => ({
     groups: SPDB.get("groups"), members: SPDB.get("members"),
@@ -676,9 +763,22 @@ function GroupsTab() {
     expenses: SPDB.get("expenses"), settlements: SPDB.get("settlements"), activity: SPDB.get("activity"),
   }), []);
 
-  const me = spData.members.find(m => m.name === "You") || spData.members[0];
+  const me = spData.members.find(m => m.id === "u1") || spData.members.find(m => m.name === "You") || spData.members[0];
+
+  // Keep the "You" member in sync with the app-wide profile name.
+  useEffect(() => {
+    if (!profile || !me) return;
+    const name = (profile.name || "You").trim() || "You";
+    const initials = (profile.initials || name.slice(0, 2)).toUpperCase().slice(0, 2);
+    if (me.name !== name || me.initials !== initials) {
+      SPDB.update("members", me.id, { name, initials });
+      refresh();
+    }
+  }, [profile?.name, profile?.initials]);
+
   const [activeGid,   setActiveGid]   = useState(null);
-  const [modal,       setModal]       = useState(null); // "addExpense" | "addGroup" | "settle"
+  const [editingExp,  setEditingExp]  = useState(null);
+  const [modal,       setModal]       = useState(null); // "addExpense" | "editExpense" | "addGroup" | "settle"
   const [navInner,    setNavInner]    = useState("groups"); // "groups" | "friends" | "activity"
   const [spToast,     setSpToast]     = useState(null);
   const toastRef = useRef(null);
@@ -710,14 +810,53 @@ function GroupsTab() {
     return total;
   }, [allBalances, me]);
 
+  // Mirror a group expense into the main Home ledger when "You" paid: record the
+  // full amount paid out, with the others' shares tracked as reimbursement.
+  const linkExpense = useCallback((exp) => {
+    if (!onLinkUpsert || !onLinkDelete) return;
+    if (exp.paidBy !== me?.id) { onLinkDelete(exp.id); return; }
+    const grp = SPDB.get("groups").find(g => g.id === exp.groupId);
+    const grpName = grp ? grp.name.replace(/^[^\w\s]+\s*/, "") : "Group";
+    const yourShare = exp.splits.find(s => s.id === me.id)?.amount || 0;
+    onLinkUpsert({
+      groupExpenseId: exp.id,
+      type: "expense",
+      amount: Math.round(yourShare),
+      originalAmount: Math.round(exp.amount),
+      reimbursed: Math.round(exp.amount - yourShare),
+      split: true,
+      category: spToAppCat(exp.category),
+      note: `${exp.description} · ${grpName}`,
+      date: exp.date,
+    });
+  }, [me, onLinkUpsert, onLinkDelete]);
+
   const addExpense = (exp) => {
     SPDB.insert("expenses", exp);
     SPDB.insert("activity", { id: _spUid(), type: "expense_added", groupId: exp.groupId, expenseId: exp.id, userId: me.id, timestamp: _spNowISO(), meta: { description: exp.description, amount: exp.amount } });
-    refresh(); setModal(null); showSpToast("Expense added ✓");
+    linkExpense(exp);
+    refresh(); setModal(null); showSpToast(L.tExpAdded);
   };
-  const deleteExpense = (id) => { SPDB.delete("expenses", id); refresh(); showSpToast("Expense removed"); };
-  const addGroup = (g) => { SPDB.insert("groups", g); refresh(); setActiveGid(g.id); setModal(null); showSpToast("Group created!"); };
-  const addSettlement = (s) => { SPDB.insert("settlements", s); refresh(); setModal(null); showSpToast("Settled up! 🎉"); };
+  const editExpense = (exp) => {
+    SPDB.update("expenses", exp.id, exp);
+    linkExpense(exp);
+    refresh(); setModal(null); setEditingExp(null); showSpToast(L.tExpUpdated);
+  };
+  const deleteExpense = (id) => { SPDB.delete("expenses", id); onLinkDelete?.(id); refresh(); showSpToast(L.tExpRemoved); };
+  const addGroup = (g) => { SPDB.insert("groups", g); refresh(); setActiveGid(g.id); setModal(null); showSpToast(L.tGroupCreated); };
+  const deleteGroup = (gid) => {
+    SPDB.get("expenses").filter(e => e.groupId === gid).forEach(e => { SPDB.delete("expenses", e.id); onLinkDelete?.(e.id); });
+    SPDB.get("settlements").filter(s => s.groupId === gid).forEach(s => SPDB.delete("settlements", s.id));
+    SPDB.get("activity").filter(a => a.groupId === gid).forEach(a => SPDB.delete("activity", a.id));
+    SPDB.delete("groups", gid);
+    setActiveGid(null); refresh(); showSpToast(L.tGroupDeleted);
+  };
+  const addSettlement = (s) => {
+    SPDB.insert("settlements", s);
+    const toM = spData.members.find(m => m.id === s.to);
+    SPDB.insert("activity", { id: _spUid(), type: "settlement", groupId: s.groupId, userId: s.from, timestamp: _spNowISO(), meta: { amount: s.amount, to: toM?.name } });
+    refresh(); setModal(null); showSpToast(L.tSettled);
+  };
 
   const indigo = "#4F46E5";
   const indigoLight = "#EEF2FF";
@@ -737,14 +876,17 @@ function GroupsTab() {
           data={spData} me={me} gid={activeGid} allBalances={allBalances}
           onBack={() => setActiveGid(null)}
           onAddExpense={() => setModal("addExpense")}
+          onEditExpense={(e) => { setEditingExp(e); setModal("editExpense"); }}
           onSettle={(gid) => { setActiveGid(gid); setModal("settle"); }}
           onDelete={deleteExpense}
+          onDeleteGroup={deleteGroup}
+          L={L} lang={lang}
         />
       )}
 
       {/* Inner sub-nav */}
       <div style={{ display: "flex", gap: 4, padding: "0 16px 14px", background: "#F8F7F4", borderBottom: "1px solid #E2E8F0", marginBottom: 0 }}>
-        {[["groups","👥 Groups"],["friends","◎ Friends"],["activity","◈ Activity"]].map(([id, label]) => (
+        {[["groups",L.navGroups],["friends",L.navFriends],["activity",L.navActivity]].map(([id, label]) => (
           <button key={id} onClick={() => { setNavInner(id); setActiveGid(null); }} style={{ flex: 1, padding: "8px 4px", borderRadius: 10, border: "none", fontFamily: SP_FONT, fontSize: 11, fontWeight: 700, cursor: "pointer", background: navInner === id ? "#0F172A" : "#FFFFFF", color: navInner === id ? "#FFFFFF" : "#94A3B8", transition: "all 0.18s" }}>{label}</button>
         ))}
       </div>
@@ -754,17 +896,17 @@ function GroupsTab() {
         <div style={{ padding: "0 16px" }}>
           {/* Net balance hero */}
           <div style={{ padding: "20px 0 16px" }}>
-            <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: SP_FONT }}>Your net balance</p>
+            <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: SP_FONT }}>{L.netBalance}</p>
             <p style={{ margin: 0, fontSize: 36, fontWeight: 700, color: myNetBalance >= 0 ? "#15803D" : "#EF4444", fontFamily: SP_MONO, letterSpacing: "-1.5px" }}>{myNetBalance >= 0 ? "+" : "-"}{_spFmt(Math.abs(myNetBalance))}</p>
-            <p style={{ margin: "4px 0 0", fontSize: 12, color: "#94A3B8", fontFamily: SP_FONT }}>{myNetBalance >= 0 ? "others owe you" : "you owe others"} across {spData.groups.length} groups</p>
+            <p style={{ margin: "4px 0 0", fontSize: 12, color: "#94A3B8", fontFamily: SP_FONT }}>{myNetBalance >= 0 ? L.othersOwe : L.youOweOthers} {L.acrossGroups(spData.groups.length)}</p>
           </div>
 
           {/* Add group button */}
           <button onClick={() => setModal("addGroup")} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "12px", borderRadius: 16, border: `1.5px dashed ${indigo}55`, background: indigoLight, color: indigo, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: SP_FONT, marginBottom: 14 }}>
-            👥 New Group
+            {L.newGroupBtn}
           </button>
 
-          {spData.groups.length === 0 && <SpEmpty icon="👥" title="No groups yet" sub="Create a group to start tracking shared expenses" />}
+          {spData.groups.length === 0 && <SpEmpty icon="👥" title={L.noGroups} sub={L.noGroupsSub} />}
           {spData.groups.map(g => {
             const bal   = allBalances[g.id] || {};
             const debts = bal.debts || [];
@@ -778,7 +920,7 @@ function GroupsTab() {
                 <div style={{ width: 52, height: 52, borderRadius: 18, background: `${g.color}22`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0, border: `1px solid ${g.color}44` }}>{g.emoji}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ margin: "0 0 3px", fontSize: 15, fontWeight: 700, color: "#0F172A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: SP_FONT }}>{g.name.replace(/^[^\w\s]+\s*/, "")}</p>
-                  <p style={{ margin: "0 0 8px", fontSize: 11, color: "#94A3B8", fontFamily: SP_FONT }}>{_spFmt(bal.total || 0)} total · {members.length} members</p>
+                  <p style={{ margin: "0 0 8px", fontSize: 11, color: "#94A3B8", fontFamily: SP_FONT }}>{L.totalMembers(_spFmt(bal.total || 0), members.length)}</p>
                   <div style={{ display: "flex", alignItems: "center" }}>
                     {members.slice(0, 6).map((m, i) => (
                       <div key={m.id} style={{ width: 22, height: 22, borderRadius: 99, background: m.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, color: "#fff", marginLeft: i === 0 ? 0 : -8, border: "2px solid #FFFFFF" }}>{m.initials.slice(0, 1)}</div>
@@ -787,14 +929,14 @@ function GroupsTab() {
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
                   {settled ? (
-                    <span style={{ fontSize: 10, fontWeight: 700, background: "#F0FDF4", color: "#15803D", padding: "5px 10px", borderRadius: 99, border: "1px solid rgba(0,200,150,0.2)" }}>Settled</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, background: "#F0FDF4", color: "#15803D", padding: "5px 10px", borderRadius: 99, border: "1px solid rgba(0,200,150,0.2)" }}>{L.settled}</span>
                   ) : net !== 0 ? (
                     <>
-                      <p style={{ margin: "0 0 2px", fontSize: 9, color: "#94A3B8", fontWeight: 600, fontFamily: SP_FONT }}>{net > 0 ? "You're owed" : "You owe"}</p>
+                      <p style={{ margin: "0 0 2px", fontSize: 9, color: "#94A3B8", fontWeight: 600, fontFamily: SP_FONT }}>{net > 0 ? L.youreOwed : L.youOwe}</p>
                       <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: net > 0 ? "#15803D" : "#EF4444", fontFamily: SP_MONO }}>{_spFmt(Math.abs(net))}</p>
                     </>
                   ) : (
-                    <span style={{ fontSize: 10, fontWeight: 700, background: indigoLight, color: indigo, padding: "5px 10px", borderRadius: 99 }}>Even</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, background: indigoLight, color: indigo, padding: "5px 10px", borderRadius: 99 }}>{L.even}</span>
                   )}
                 </div>
               </div>
@@ -820,15 +962,15 @@ function GroupsTab() {
           <div style={{ padding: "0 16px" }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, margin: "16px 0" }}>
               <div style={{ background: "#F0FDF4", borderRadius: 18, padding: "14px 16px", border: "1px solid rgba(0,200,150,0.2)" }}>
-                <p style={{ margin: "0 0 4px", fontSize: 9, fontWeight: 700, color: "#15803D", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: SP_FONT }}>Owed to you</p>
+                <p style={{ margin: "0 0 4px", fontSize: 9, fontWeight: 700, color: "#15803D", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: SP_FONT }}>{L.owedToYou}</p>
                 <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#15803D", fontFamily: SP_MONO }}>+{_spFmt(totalOwed)}</p>
               </div>
               <div style={{ background: "#FFF1F2", borderRadius: 18, padding: "14px 16px", border: "1px solid rgba(255,91,91,0.2)" }}>
-                <p style={{ margin: "0 0 4px", fontSize: 9, fontWeight: 700, color: "#EF4444", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: SP_FONT }}>You owe</p>
+                <p style={{ margin: "0 0 4px", fontSize: 9, fontWeight: 700, color: "#EF4444", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: SP_FONT }}>{L.youOwe}</p>
                 <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#EF4444", fontFamily: SP_MONO }}>{_spFmt(totalOwe)}</p>
               </div>
             </div>
-            {friends.length === 0 ? <SpEmpty icon="👤" title="No friends yet" sub="Add members to your groups to see them here" /> : (
+            {friends.length === 0 ? <SpEmpty icon="👤" title={L.noFriends} sub={L.noFriendsSub} /> : (
               friends.map(f => {
                 const bal = friendBalances[f.id] || 0;
                 const sharedGroups = spData.groups.filter(g => g.memberIds.includes(f.id) && g.memberIds.includes(me?.id));
@@ -837,12 +979,12 @@ function GroupsTab() {
                     <SpAvatar m={f} size={46} />
                     <div style={{ flex: 1 }}>
                       <p style={{ margin: "0 0 3px", fontSize: 15, fontWeight: 700, color: "#0F172A", fontFamily: SP_FONT }}>{f.name}</p>
-                      <p style={{ margin: 0, fontSize: 11, color: "#94A3B8", fontFamily: SP_FONT }}>{sharedGroups.length} shared group{sharedGroups.length !== 1 ? "s" : ""}</p>
+                      <p style={{ margin: 0, fontSize: 11, color: "#94A3B8", fontFamily: SP_FONT }}>{L.sharedGroups(sharedGroups.length)}</p>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      {bal === 0 ? <span style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", fontFamily: SP_FONT }}>Settled</span> : (
+                      {bal === 0 ? <span style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", fontFamily: SP_FONT }}>{L.settled}</span> : (
                         <>
-                          <p style={{ margin: "0 0 1px", fontSize: 9, color: "#94A3B8", fontWeight: 600, fontFamily: SP_FONT }}>{bal > 0 ? "owes you" : "you owe"}</p>
+                          <p style={{ margin: "0 0 1px", fontSize: 9, color: "#94A3B8", fontWeight: 600, fontFamily: SP_FONT }}>{bal > 0 ? L.owesYou : L.youOwe}</p>
                           <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: bal > 0 ? "#15803D" : "#EF4444", fontFamily: SP_MONO }}>{_spFmt(Math.abs(bal))}</p>
                         </>
                       )}
@@ -862,20 +1004,20 @@ function GroupsTab() {
         const getLabel = (act) => {
           const u = spData.members.find(m => m.id === act.userId);
           const g = spData.groups.find(x => x.id === act.groupId);
-          if (act.type === "expense_added") return `${u?.name || "Someone"} added "${act.meta?.description}" (${_spFmt(act.meta?.amount || 0)}) in ${g?.name || "a group"}`;
-          if (act.type === "settlement")    return `${u?.name || "Someone"} settled ${_spFmt(act.meta?.amount || 0)}`;
-          if (act.type === "group_created") return `Group "${act.meta?.name}" was created`;
-          return "Activity";
+          if (act.type === "expense_added") return L.actAdded(u?.name || L.someone, act.meta?.description, _spFmt(act.meta?.amount || 0), g?.name || L.aGroup);
+          if (act.type === "settlement")    return L.actSettled(u?.name || L.someone, _spFmt(act.meta?.amount || 0), act.meta?.to);
+          if (act.type === "group_created") return L.actGroupCreated(act.meta?.name);
+          return L.tabAnalytics;
         };
         return (
           <div style={{ padding: "16px 16px 0" }}>
-            {activities.length === 0 ? <SpEmpty icon="📋" title="No activity yet" sub="Your expense history will appear here" /> : (
+            {activities.length === 0 ? <SpEmpty icon="📋" title={L.noActivity} sub={L.noActivitySub} /> : (
               activities.map(act => (
                 <div key={act.id} style={{ display: "flex", gap: 12, marginBottom: 8, background: "#FFFFFF", padding: "14px 16px", borderRadius: 16, border: "1px solid #E2E8F0" }}>
                   <div style={{ width: 36, height: 36, borderRadius: 12, background: "#EEF2FF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{getIcon(act.type)}</div>
                   <div style={{ flex: 1 }}>
                     <p style={{ margin: "0 0 3px", fontSize: 13, fontWeight: 600, color: "#0F172A", lineHeight: 1.4, fontFamily: SP_FONT }}>{getLabel(act)}</p>
-                    <p style={{ margin: 0, fontSize: 11, color: "#94A3B8", fontFamily: SP_FONT }}>{_spFmtDate(act.timestamp.slice(0, 10))} · {_spFmtTime(act.timestamp)}</p>
+                    <p style={{ margin: 0, fontSize: 11, color: "#94A3B8", fontFamily: SP_FONT }}>{_spFmtDate(act.timestamp.slice(0, 10), lang)} · {_spFmtTime(act.timestamp)}</p>
                   </div>
                 </div>
               ))
@@ -885,9 +1027,10 @@ function GroupsTab() {
       })()}
 
       {/* Modals */}
-      {modal === "addExpense" && <SpAddExpenseModal data={spData} me={me} activeGid={activeGid} onSave={addExpense} onClose={() => setModal(null)} />}
-      {modal === "addGroup"   && <SpAddGroupModal   data={spData} me={me} onSave={addGroup}    onClose={() => setModal(null)} />}
-      {modal === "settle" && activeGid && <SpSettleModal data={spData} me={me} gid={activeGid} allBalances={allBalances} onSave={addSettlement} onClose={() => setModal(null)} />}
+      {modal === "addExpense" && <SpAddExpenseModal data={spData} me={me} activeGid={activeGid} onSave={addExpense} onClose={() => setModal(null)} L={L} />}
+      {modal === "editExpense" && editingExp && <SpAddExpenseModal data={spData} me={me} activeGid={activeGid} editExpense={editingExp} onSave={editExpense} onClose={() => { setModal(null); setEditingExp(null); }} L={L} />}
+      {modal === "addGroup"   && <SpAddGroupModal   data={spData} me={me} onSave={addGroup}    onClose={() => setModal(null)} L={L} />}
+      {modal === "settle" && activeGid && <SpSettleModal data={spData} me={me} gid={activeGid} allBalances={allBalances} onSave={addSettlement} onClose={() => setModal(null)} L={L} />}
     </div>
   );
 }
@@ -1196,6 +1339,7 @@ const thaiHeader = { fontFamily: FONT_FAMILY, lineHeight: 1.5, letterSpacing: "0
 
 // ─── YearlySummary (top-level, so hooks are never called conditionally) ────────
 function YearlySummary({ transactions, language, yearlyYear, setYearlyYear, setShowYearlySummary, computeYearlyData, t }) {
+  const tr = (en, th) => (language === "TH" ? th : en);
   const [selectedMonth, setSelectedMonth] = useState(null);
   const [selectedCat,   setSelectedCat]   = useState(null);
 
@@ -1438,7 +1582,7 @@ function YearlySummary({ transactions, language, yearlyYear, setYearlyYear, setS
                     </PieChart>
                   </ResponsiveContainer>
                   <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", textAlign: "center", pointerEvents: "none" }}>
-                    <p style={{ margin: 0, fontSize: 9, fontWeight: 500, color: "#94A3B8", textTransform: "uppercase", fontFamily: FONT_FAMILY }}>Total</p>
+                    <p style={{ margin: 0, fontSize: 9, fontWeight: 500, color: "#94A3B8", textTransform: "uppercase", fontFamily: FONT_FAMILY }}>{tr("Total", "ทั้งหมด")}</p>
                     <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: MONO_FAMILY }}>{fmt(totalSpent)}</p>
                   </div>
                 </div>
@@ -1540,13 +1684,14 @@ function LangToggle({ language, setLanguage }) {
 }
 
 // ─── Text Resizer Overlay ────────────────────────────────────────────────────
-function TextSizerOverlay({ textScale, setTextScale, onClose }) {
+function TextSizerOverlay({ textScale, setTextScale, onClose, language = "EN" }) {
+  const tr = (en, th) => (language === "TH" ? th : en);
   const pct = Math.round(textScale * 100);
   const steps = [0.85, 0.90, 0.95, 1.00, 1.05, 1.10, 1.15, 1.20, 1.25, 1.30];
   const stepLabels = { 0.85: "A−", 1.00: "A", 1.30: "A+" };
   const trackPct = ((textScale - 0.85) / (1.30 - 0.85)) * 100;
 
-  const sizeLabel = pct <= 90 ? "Smaller" : pct <= 99 ? "Slightly Small" : pct === 100 ? "Standard" : pct <= 110 ? "Slightly Large" : pct <= 120 ? "Large" : "Extra Large";
+  const sizeLabel = pct <= 90 ? tr("Smaller", "เล็กลง") : pct <= 99 ? tr("Slightly Small", "เล็กเล็กน้อย") : pct === 100 ? tr("Standard", "มาตรฐาน") : pct <= 110 ? tr("Slightly Large", "ใหญ่เล็กน้อย") : pct <= 120 ? tr("Large", "ใหญ่") : tr("Extra Large", "ใหญ่พิเศษ");
   const sizeColor = pct < 100 ? "#6366F1" : pct === 100 ? "#10B981" : "#F59E0B";
 
   return (
@@ -1567,7 +1712,7 @@ function TextSizerOverlay({ textScale, setTextScale, onClose }) {
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <div>
-            <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#0F172A", fontFamily: FONT_FAMILY, letterSpacing: "-0.3px" }}>Text Size</p>
+            <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#0F172A", fontFamily: FONT_FAMILY, letterSpacing: "-0.3px" }}>{tr("Text Size", "ขนาดตัวอักษร")}</p>
             <p style={{ margin: "2px 0 0", fontSize: 12, color: sizeColor, fontWeight: 600, fontFamily: FONT_FAMILY, transition: "color 0.2s" }}>{sizeLabel}</p>
           </div>
           <button onClick={onClose} style={{ width: 34, height: 34, borderRadius: 99, border: "none", background: "#F1F5F9", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748B" }}>
@@ -1578,11 +1723,11 @@ function TextSizerOverlay({ textScale, setTextScale, onClose }) {
         {/* Live preview card */}
         <div style={{ background: "#F8F7F4", borderRadius: 20, padding: "16px", marginBottom: 24, border: "1.5px solid #E8E6E2", overflow: "hidden" }}>
           {/* Preview label */}
-          <p style={{ margin: "0 0 10px", fontSize: 10, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: FONT_FAMILY }}>Live Preview</p>
+          <p style={{ margin: "0 0 10px", fontSize: 10, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: FONT_FAMILY }}>{tr("Live Preview", "ตัวอย่าง")}</p>
 
           {/* Summary row */}
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
-            <p style={{ margin: 0, fontSize: `${11 * textScale}px`, fontWeight: 500, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT_FAMILY, transition: "font-size 0.15s" }}>Monthly Summary</p>
+            <p style={{ margin: 0, fontSize: `${11 * textScale}px`, fontWeight: 500, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT_FAMILY, transition: "font-size 0.15s" }}>{tr("Monthly Summary", "สรุปรายเดือน")}</p>
             <span style={{ fontSize: `${10 * textScale}px`, fontWeight: 600, background: "#EEF2FF", color: "#4F46E5", padding: "2px 7px", borderRadius: 99, fontFamily: FONT_FAMILY, transition: "font-size 0.15s" }}>Jun 2025</span>
           </div>
           <p style={{ margin: "0 0 10px", fontSize: `${28 * textScale}px`, fontWeight: 700, letterSpacing: "-1.5px", color: "#0F172A", lineHeight: 1.05, fontFamily: MONO_FAMILY, transition: "font-size 0.15s" }}>฿12,840</p>
@@ -1590,7 +1735,7 @@ function TextSizerOverlay({ textScale, setTextScale, onClose }) {
           {/* Budget bar */}
           <div style={{ marginBottom: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-              <span style={{ fontSize: `${10 * textScale}px`, color: "#94A3B8", fontFamily: FONT_FAMILY, transition: "font-size 0.15s" }}>Budget used</span>
+              <span style={{ fontSize: `${10 * textScale}px`, color: "#94A3B8", fontFamily: FONT_FAMILY, transition: "font-size 0.15s" }}>{tr("Budget used", "ใช้งบไปแล้ว")}</span>
               <span style={{ fontSize: `${10 * textScale}px`, fontWeight: 600, color: "#F59E0B", fontFamily: MONO_FAMILY, transition: "font-size 0.15s" }}>64%</span>
             </div>
             <div style={{ height: 5, background: "#FEF3C7", borderRadius: 99, overflow: "hidden" }}>
@@ -1602,8 +1747,8 @@ function TextSizerOverlay({ textScale, setTextScale, onClose }) {
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#FFFFFF", borderRadius: 14, boxShadow: "0 2px 8px rgba(15,23,42,0.05)" }}>
             <div style={{ width: `${36 * Math.min(textScale, 1.15)}px`, height: `${36 * Math.min(textScale, 1.15)}px`, minWidth: 28, borderRadius: 11, background: "#FFF8F0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: `${17 * textScale}px`, flexShrink: 0, transition: "all 0.15s" }}>🍜</div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: `${13 * textScale}px`, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY, transition: "font-size 0.15s", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Your Expenses</p>
-              <p style={{ margin: "1px 0 0", fontSize: `${11 * textScale}px`, color: "#94A3B8", fontFamily: FONT_FAMILY, transition: "font-size 0.15s" }}>Food & Drink · Jun 6</p>
+              <p style={{ margin: 0, fontSize: `${13 * textScale}px`, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY, transition: "font-size 0.15s", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tr("Your Expenses", "รายจ่ายของคุณ")}</p>
+              <p style={{ margin: "1px 0 0", fontSize: `${11 * textScale}px`, color: "#94A3B8", fontFamily: FONT_FAMILY, transition: "font-size 0.15s" }}>{tr("Food & Drink · Jun 6", "อาหารและเครื่องดื่ม · 6 มิ.ย.")}</p>
             </div>
             <span style={{ fontSize: `${14 * textScale}px`, fontWeight: 700, color: "#EF4444", fontFamily: MONO_FAMILY, flexShrink: 0, transition: "font-size 0.15s" }}>−฿320</span>
           </div>
@@ -1649,11 +1794,11 @@ function TextSizerOverlay({ textScale, setTextScale, onClose }) {
             <div style={{ background: "#EEF2FF", borderRadius: 99, padding: "6px 14px" }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: "#4F46E5", fontFamily: MONO_FAMILY }}>{pct}%</span>
             </div>
-            <span style={{ fontSize: 12, color: "#94A3B8", fontFamily: FONT_FAMILY }}>of standard size</span>
+            <span style={{ fontSize: 12, color: "#94A3B8", fontFamily: FONT_FAMILY }}>{tr("of standard size", "ของขนาดมาตรฐาน")}</span>
           </div>
           {textScale !== 1 && (
             <button onClick={() => setTextScale(1)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#F8F7F4", border: "1.5px solid #E2E8F0", cursor: "pointer", padding: "7px 14px", borderRadius: 99, fontSize: 12, fontWeight: 600, color: "#64748B", fontFamily: FONT_FAMILY, transition: "all 0.15s" }}>
-              Reset
+              {tr("Reset", "รีเซ็ต")}
             </button>
           )}
         </div>
@@ -1666,7 +1811,8 @@ function TextSizerOverlay({ textScale, setTextScale, onClose }) {
 const CAT_EMOJIS = ["🍜","🍔","☕","🛒","🚇","⛽","🏠","💡","🎁","🎉","🎮","🎬","💊","🏥","✈️","🏖️","👕","💄","📚","🐱","🐶","💼","📈","💻","💵","🎓","🏋️","⚽","🎵","🌿","🔧","📦"];
 const CAT_COLORS = ["#FB923C","#60A5FA","#A78BFA","#FACC15","#F87171","#34D399","#22C55E","#EC4899","#3B82F6","#8B5CF6","#14B8A6","#94A3B8"];
 
-function CategoryForm({ type, initial, onSave, onClose }) {
+function CategoryForm({ type, initial, onSave, onClose, language = "EN" }) {
+  const tr = (en, th) => (language === "TH" ? th : en);
   const isEdit = !!initial;
   const [name,  setName]  = useState(initial?.label || "");
   const [icon,  setIcon]  = useState(initial?.icon || CAT_EMOJIS[0]);
@@ -1675,7 +1821,7 @@ function CategoryForm({ type, initial, onSave, onClose }) {
 
   const save = () => {
     const trimmed = name.trim();
-    if (!trimmed) { setError("Enter a category name"); return; }
+    if (!trimmed) { setError(tr("Enter a category name", "กรอกชื่อหมวดหมู่")); return; }
     const cat = {
       value: initial?.value || ("c_" + _spUid()),
       label: trimmed, labelShort: trimmed,
@@ -1691,27 +1837,27 @@ function CategoryForm({ type, initial, onSave, onClose }) {
       <div style={{ position: "relative", background: "#FFFFFF", borderRadius: "28px 28px 0 0", padding: "8px 22px 40px", width: "100%", maxWidth: 430, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 -12px 48px rgba(15,23,42,0.22)", animation: "spSlideUp 0.32s cubic-bezier(0.32,0.72,0,1)" }}>
         <div style={{ width: 40, height: 4, background: "#E2E8F0", borderRadius: 99, margin: "12px auto 18px" }} />
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-          <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#0F172A", fontFamily: FONT_FAMILY }}>{isEdit ? "Edit Category" : "New Category"} <span style={{ fontSize: 12, fontWeight: 600, color: type === "income" ? "#15803D" : T.indigo }}>· {type === "income" ? "Income" : "Expense"}</span></p>
+          <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#0F172A", fontFamily: FONT_FAMILY }}>{isEdit ? tr("Edit Category", "แก้ไขหมวดหมู่") : tr("New Category", "หมวดหมู่ใหม่")} <span style={{ fontSize: 12, fontWeight: 600, color: type === "income" ? "#15803D" : T.indigo }}>· {type === "income" ? tr("Income", "รายรับ") : tr("Expense", "รายจ่าย")}</span></p>
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 99, border: "none", background: "#F1F5F9", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748B" }}><X size={15} /></button>
         </div>
 
         {/* Preview chip */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderRadius: 18, background: color + "18", border: `1.5px solid ${color}55`, marginBottom: 18 }}>
           <div style={{ width: 46, height: 46, borderRadius: 14, background: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>{icon}</div>
-          <span style={{ fontSize: 16, fontWeight: 700, color, fontFamily: FONT_FAMILY }}>{name.trim() || "Category name"}</span>
+          <span style={{ fontSize: 16, fontWeight: 700, color, fontFamily: FONT_FAMILY }}>{name.trim() || tr("Category name", "ชื่อหมวดหมู่")}</span>
         </div>
 
-        <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>Name</p>
-        <input value={name} onChange={(e) => { setName(e.target.value); setError(""); }} placeholder="e.g. Coffee" autoFocus style={{ ...T.input, marginBottom: 16 }} />
+        <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{tr("Name", "ชื่อ")}</p>
+        <input value={name} onChange={(e) => { setName(e.target.value); setError(""); }} placeholder={tr("e.g. Coffee", "เช่น กาแฟ")} autoFocus style={{ ...T.input, marginBottom: 16 }} />
 
-        <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>Icon</p>
+        <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{tr("Icon", "ไอคอน")}</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 6, marginBottom: 16 }}>
           {CAT_EMOJIS.map((e) => (
             <button key={e} onClick={() => setIcon(e)} style={{ aspectRatio: "1", borderRadius: 12, border: `2px solid ${icon === e ? color : "transparent"}`, background: icon === e ? color + "18" : "#F8F7F4", fontSize: 19, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>{e}</button>
           ))}
         </div>
 
-        <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>Color</p>
+        <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{tr("Color", "สี")}</p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginBottom: 20 }}>
           {CAT_COLORS.map((c) => (
             <button key={c} onClick={() => setColor(c)} style={{ width: 34, height: 34, borderRadius: 99, background: c, border: color === c ? "3px solid #fff" : "3px solid transparent", outline: color === c ? `2px solid ${c}` : "none", cursor: "pointer" }} />
@@ -1720,7 +1866,7 @@ function CategoryForm({ type, initial, onSave, onClose }) {
 
         {error && <p style={{ color: "#EF4444", fontSize: 13, marginBottom: 12, fontWeight: 500, fontFamily: FONT_FAMILY }}>{error}</p>}
         <button onClick={save} style={{ width: "100%", padding: "15px", borderRadius: 16, border: "none", background: T.indigo, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT_FAMILY, boxShadow: "0 8px 24px rgba(79,70,229,0.28)" }}>
-          {isEdit ? "Save Changes" : "Add Category"}
+          {isEdit ? tr("Save Changes", "บันทึกการเปลี่ยนแปลง") : tr("Add Category", "เพิ่มหมวดหมู่")}
         </button>
       </div>
     </div>
@@ -1728,7 +1874,8 @@ function CategoryForm({ type, initial, onSave, onClose }) {
 }
 
 // ─── Quick Add (MeowJot-style fast keypad logging) ───────────────────────────
-function QuickAddSheet({ categories, defaultCat, onSave, onDetailed, onClose }) {
+function QuickAddSheet({ categories, defaultCat, onSave, onDetailed, onClose, language = "EN" }) {
+  const tr = (en, th) => (language === "TH" ? th : en);
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState(defaultCat || categories[0]?.value);
   const [note, setNote] = useState("");
@@ -1751,7 +1898,7 @@ function QuickAddSheet({ categories, defaultCat, onSave, onDetailed, onClose }) 
       <div style={{ position: "relative", background: "#FFFDF8", borderRadius: "30px 30px 0 0", padding: "10px 18px 28px", width: "100%", maxWidth: 430, boxShadow: "0 -12px 48px rgba(15,23,42,0.22)", animation: "spSlideUp 0.32s cubic-bezier(0.32,0.72,0,1)" }}>
         <div style={{ width: 40, height: 4, background: "#E7E2D6", borderRadius: 99, margin: "10px auto 14px" }} />
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0F172A", fontFamily: FONT_FAMILY }}>🐱 Quick Add</p>
+          <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0F172A", fontFamily: FONT_FAMILY }}>🐱 {tr("Quick Add", "เพิ่มด่วน")}</p>
           <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 99, border: "none", background: "#F1ECE0", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#94896E" }}><X size={15} /></button>
         </div>
 
@@ -1774,7 +1921,7 @@ function QuickAddSheet({ categories, defaultCat, onSave, onDetailed, onClose }) 
         </div>
 
         {/* Note */}
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a note… (optional)" style={{ width: "100%", boxSizing: "border-box", padding: "11px 16px", borderRadius: 14, border: "1.5px solid #EAE3D4", background: "#FFFFFF", fontSize: 14, fontFamily: FONT_FAMILY, color: "#0F172A", outline: "none", marginBottom: 12 }} />
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={tr("Add a note… (optional)", "เพิ่มโน้ต… (ไม่บังคับ)")} style={{ width: "100%", boxSizing: "border-box", padding: "11px 16px", borderRadius: 14, border: "1.5px solid #EAE3D4", background: "#FFFFFF", fontSize: 14, fontFamily: FONT_FAMILY, color: "#0F172A", outline: "none", marginBottom: 12 }} />
 
         {/* Keypad */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 12 }}>
@@ -1789,9 +1936,9 @@ function QuickAddSheet({ categories, defaultCat, onSave, onDetailed, onClose }) 
         </div>
 
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={onDetailed} style={{ flexShrink: 0, padding: "15px 18px", borderRadius: 18, border: "1.5px solid #EAE3D4", background: "#FFFFFF", color: "#8A7E63", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY }}>More</button>
+          <button onClick={onDetailed} style={{ flexShrink: 0, padding: "15px 18px", borderRadius: 18, border: "1.5px solid #EAE3D4", background: "#FFFFFF", color: "#8A7E63", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY }}>{tr("More", "เพิ่มเติม")}</button>
           <button onClick={() => amt > 0 && onSave({ category, amount: amt, note })} disabled={amt <= 0} style={{ flex: 1, padding: "15px", borderRadius: 18, border: "none", background: amt > 0 ? cat.bar : "#E7E2D6", color: "#fff", fontSize: 16, fontWeight: 700, cursor: amt > 0 ? "pointer" : "not-allowed", fontFamily: FONT_FAMILY, boxShadow: amt > 0 ? `0 8px 22px ${cat.bar}55` : "none", transition: "all 0.18s" }}>
-            Save {amt > 0 ? `฿${amt.toLocaleString()}` : ""}
+            {tr("Save", "บันทึก")} {amt > 0 ? `฿${amt.toLocaleString()}` : ""}
           </button>
         </div>
       </div>
@@ -1835,6 +1982,27 @@ export default function FinanceTracker() {
   // NEW: Edit transaction
   const [editingTx,     setEditingTx]     = useState(null); // tx object being edited
 
+  // Profile (used as the "You" identity inside Groups)
+  const [profile,       setProfile]       = useState(() => lsGet("ft_profile", { name: "You", initials: "YO" }));
+  useEffect(() => lsSet("ft_profile", profile), [profile]);
+
+  // Insert/update or remove a Home transaction mirrored from a group expense,
+  // keyed by groupExpenseId so edits/deletes stay in sync.
+  const linkUpsertTx = useCallback((p) => {
+    setTransactions((prev) => {
+      const idx = prev.findIndex((t) => t.groupExpenseId === p.groupExpenseId);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = { ...copy[idx], type: p.type, amount: p.amount, originalAmount: p.originalAmount, reimbursed: p.reimbursed, split: p.split, category: p.category, note: p.note, date: p.date, tags: extractTags(p.note) };
+        return copy;
+      }
+      return [{ id: uid(), type: p.type, amount: p.amount, originalAmount: p.originalAmount, reimbursed: p.reimbursed, split: p.split, category: p.category, note: p.note, date: p.date, tags: extractTags(p.note), groupExpenseId: p.groupExpenseId }, ...prev];
+    });
+  }, []);
+  const linkDeleteTx = useCallback((groupExpenseId) => {
+    setTransactions((prev) => prev.filter((t) => t.groupExpenseId !== groupExpenseId));
+  }, []);
+
   // NEW: Undo delete
   const [undoStack,     setUndoStack]     = useState([]); // [{tx, idx}]
   const [undoToast,     setUndoToast]     = useState(null); // {tx, timeoutId}
@@ -1861,6 +2029,7 @@ export default function FinanceTracker() {
   const [yearlyYear,        setYearlyYear]         = useState(new Date().getFullYear());
 
   const t = TRANSLATIONS[language];
+  const tr = (en, th) => (language === "TH" ? th : en); // inline i18n for labels not in the main map
   const CATEGORIES = getCategoriesForLang(language);
   const INCOME_CATS = getIncomeCategoriesForLang(language);
 
@@ -2375,7 +2544,7 @@ export default function FinanceTracker() {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                             <span style={{ fontSize: 13, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{tx.note || cat.label}</span>
-                            {isIncome && <span style={{ fontSize: 10, fontWeight: 600, background: "#F0FDF4", color: "#15803D", padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>income</span>}
+                            {isIncome && <span style={{ fontSize: 10, fontWeight: 600, background: "#F0FDF4", color: "#15803D", padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{tr("income", "รายรับ")}</span>}
                             {!isIncome && tx.split && <span style={{ fontSize: 10, fontWeight: 600, background: "#EEF2FF", color: T.indigo, padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{t.split}</span>}
                             {tx.recurringId && <span style={{ fontSize: 10, fontWeight: 600, background: "#FEFCE8", color: "#A16207", padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{t.auto}</span>}
                           </div>
@@ -2395,7 +2564,7 @@ export default function FinanceTracker() {
         );
       })()}
 
-      {showTextSizer && <TextSizerOverlay textScale={textScale} setTextScale={setTextScale} onClose={() => setShowTextSizer(false)} />}
+      {showTextSizer && <TextSizerOverlay textScale={textScale} setTextScale={setTextScale} onClose={() => setShowTextSizer(false)} language={language} />}
 
       {/* Quick Add keypad */}
       {showQuickAdd && (
@@ -2405,12 +2574,13 @@ export default function FinanceTracker() {
           onSave={quickSave}
           onDetailed={() => { setShowQuickAdd(false); setEditingTx(null); setForm(blankForm); setFormPrefilledMonth(null); setShowForm(true); setTab("home"); }}
           onClose={() => setShowQuickAdd(false)}
+          language={language}
         />
       )}
 
       {/* Category add/edit modal */}
       {catModal && (
-        <CategoryForm type={catModal.type} initial={catModal.cat} onSave={(cat) => saveCategory(catModal.type, cat)} onClose={() => setCatModal(null)} />
+        <CategoryForm type={catModal.type} initial={catModal.cat} onSave={(cat) => saveCategory(catModal.type, cat)} onClose={() => setCatModal(null)} language={language} />
       )}
 
       {/* Safe-delete confirm (category has transactions) */}
@@ -2421,20 +2591,20 @@ export default function FinanceTracker() {
             <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 12 }}>
               <div style={{ width: 44, height: 44, borderRadius: 14, background: "#FFF1F2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{catDeleteTgt.cat.icon}</div>
               <div>
-                <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0F172A", fontFamily: FONT_FAMILY }}>Delete "{catDeleteTgt.cat.label}"?</p>
-                <p style={{ margin: 0, fontSize: 12, color: "#94A3B8", fontFamily: FONT_FAMILY }}>{catDeleteTgt.count} transaction{catDeleteTgt.count !== 1 ? "s" : ""} use this category</p>
+                <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0F172A", fontFamily: FONT_FAMILY }}>{tr(`Delete "${catDeleteTgt.cat.label}"?`, `ลบ "${catDeleteTgt.cat.label}"?`)}</p>
+                <p style={{ margin: 0, fontSize: 12, color: "#94A3B8", fontFamily: FONT_FAMILY }}>{tr(`${catDeleteTgt.count} transaction${catDeleteTgt.count !== 1 ? "s" : ""} use this category`, `${catDeleteTgt.count} รายการใช้หมวดหมู่นี้`)}</p>
               </div>
             </div>
-            <p style={{ ...T.muted, margin: "0 0 16px", fontSize: 13, fontFamily: FONT_FAMILY }}>Choose what happens to those transactions:</p>
+            <p style={{ ...T.muted, margin: "0 0 16px", fontSize: 13, fontFamily: FONT_FAMILY }}>{tr("Choose what happens to those transactions:", "เลือกว่าจะทำอย่างไรกับรายการเหล่านั้น:")}</p>
             <button onClick={() => deleteCategory(catDeleteTgt.type, catDeleteTgt.cat.value, "reassign")} style={{ width: "100%", padding: "13px", borderRadius: 14, border: "1.5px solid #E2E8F0", background: "#FFFFFF", color: "#0F172A", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY, marginBottom: 9, textAlign: "left", display: "flex", flexDirection: "column", gap: 2 }}>
-              <span>Keep transactions</span>
-              <span style={{ fontSize: 11, fontWeight: 400, color: "#94A3B8" }}>Move them to "Uncategorized"</span>
+              <span>{tr("Keep transactions", "เก็บรายการไว้")}</span>
+              <span style={{ fontSize: 11, fontWeight: 400, color: "#94A3B8" }}>{tr('Move them to "Uncategorized"', "ย้ายไปที่ “ไม่มีหมวดหมู่”")}</span>
             </button>
             <button onClick={() => deleteCategory(catDeleteTgt.type, catDeleteTgt.cat.value, "delete")} style={{ width: "100%", padding: "13px", borderRadius: 14, border: "none", background: "#FFF1F2", color: "#BE123C", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT_FAMILY, marginBottom: 9, textAlign: "left", display: "flex", flexDirection: "column", gap: 2 }}>
-              <span>Delete everything</span>
-              <span style={{ fontSize: 11, fontWeight: 400, color: "#FB7185" }}>Remove the category and its {catDeleteTgt.count} transaction{catDeleteTgt.count !== 1 ? "s" : ""}</span>
+              <span>{tr("Delete everything", "ลบทั้งหมด")}</span>
+              <span style={{ fontSize: 11, fontWeight: 400, color: "#FB7185" }}>{tr(`Remove the category and its ${catDeleteTgt.count} transaction${catDeleteTgt.count !== 1 ? "s" : ""}`, `ลบหมวดหมู่และ ${catDeleteTgt.count} รายการ`)}</span>
             </button>
-            <button onClick={() => setCatDeleteTgt(null)} style={{ width: "100%", padding: "11px", borderRadius: 14, border: "none", background: "#F1F5F9", color: "#64748B", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY }}>Cancel</button>
+            <button onClick={() => setCatDeleteTgt(null)} style={{ width: "100%", padding: "11px", borderRadius: 14, border: "none", background: "#F1F5F9", color: "#64748B", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY }}>{tr("Cancel", "ยกเลิก")}</button>
           </div>
         </div>
       )}
@@ -2449,9 +2619,9 @@ export default function FinanceTracker() {
       {/* NEW: Undo delete toast */}
       {undoToast && (
         <div style={{ position: "fixed", bottom: 100, left: "50%", transform: "translateX(-50%)", zIndex: 999, background: "#1E293B", color: "#F8FAFC", padding: "12px 18px", borderRadius: 16, fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", boxShadow: "0 8px 32px rgba(15,23,42,0.28)", fontFamily: FONT_FAMILY, display: "flex", alignItems: "center", gap: 12 }}>
-          <span>Transaction deleted</span>
+          <span>{tr("Transaction deleted", "ลบรายการแล้ว")}</span>
           <button onClick={handleUndo} style={{ display: "flex", alignItems: "center", gap: 5, background: T.indigo, border: "none", cursor: "pointer", color: "#FFFFFF", padding: "5px 12px", borderRadius: 99, fontSize: 12, fontWeight: 700, fontFamily: FONT_FAMILY }}>
-            <RotateCcw size={11} /> Undo
+            <RotateCcw size={11} /> {tr("Undo", "เลิกทำ")}
           </button>
         </div>
       )}
@@ -2461,7 +2631,7 @@ export default function FinanceTracker() {
         <div style={{ margin: "0 16px 12px", padding: "12px 16px", background: "#FFFBEB", borderRadius: 16, border: "1.5px solid #FDE68A", display: "flex", alignItems: "center", gap: 10 }}>
           <AlertTriangle size={15} color="#D97706" />
           <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: "#92400E", fontFamily: FONT_FAMILY }}>
-            {catAlertCount} budget {catAlertCount === 1 ? "category is" : "categories are"} near or over limit
+            {tr(`${catAlertCount} budget ${catAlertCount === 1 ? "category is" : "categories are"} near or over limit`, `${catAlertCount} หมวดหมู่ใกล้หรือเกินงบที่ตั้งไว้`)}
           </span>
           <button onClick={() => {
             const newDismissed = { ...dismissedAlerts };
@@ -2645,11 +2815,11 @@ export default function FinanceTracker() {
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <SectionLabel style={{ margin: 0, flex: 1 }}>{monthTxns.length === 0 ? t.noTransYet : t.transactionCount(monthTxns.length)}</SectionLabel>
             <button onClick={() => { setShowSearch((s) => !s); setSearchQuery(""); }} style={{ background: showSearch ? T.indigoLight : "none", border: "none", cursor: "pointer", padding: "5px 10px", borderRadius: 99, color: showSearch ? T.indigo : "#94A3B8", fontSize: 12, fontWeight: 600, fontFamily: FONT_FAMILY, display: "flex", alignItems: "center", gap: 4 }}>
-              🔍 {showSearch ? "Clear" : "Search"}
+              🔍 {showSearch ? tr("Clear", "ล้าง") : tr("Search", "ค้นหา")}
             </button>
           </div>
           {showSearch && (
-            <input autoFocus type="text" placeholder="Search by note, category, tag, amount…" value={searchQuery}
+            <input autoFocus type="text" placeholder={tr("Search by note, category, tag, amount…", "ค้นหาด้วยโน้ต หมวดหมู่ แท็ก จำนวนเงิน…")} value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ ...T.input, marginBottom: 12, fontSize: 13 }} />
           )}
@@ -2661,7 +2831,7 @@ export default function FinanceTracker() {
             </div>
           ) : searchFiltered([...monthTxns].sort((a, b) => new Date(b.date) - new Date(a.date))).length === 0 ? (
             <div style={{ textAlign: "center", padding: "32px 20px" }}>
-              <p style={{ ...T.muted, margin: 0, fontFamily: FONT_FAMILY }}>No results for "{searchQuery}"</p>
+              <p style={{ ...T.muted, margin: 0, fontFamily: FONT_FAMILY }}>{tr(`No results for "${searchQuery}"`, `ไม่พบผลลัพธ์สำหรับ "${searchQuery}"`)}</p>
             </div>
           ) : (() => {
             // Group this month's (filtered) transactions by category — collapsible sections.
@@ -2849,8 +3019,8 @@ export default function FinanceTracker() {
                     </BarChart>
                   </ResponsiveContainer>
                   <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 8 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 3, background: "#FCA5A5" }} /><span style={{ fontSize: 11, color: "#64748B", fontFamily: FONT_FAMILY }}>Expenses</span></div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 3, background: "#86EFAC" }} /><span style={{ fontSize: 11, color: "#64748B", fontFamily: FONT_FAMILY }}>Income</span></div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 3, background: "#FCA5A5" }} /><span style={{ fontSize: 11, color: "#64748B", fontFamily: FONT_FAMILY }}>{tr("Expenses", "รายจ่าย")}</span></div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}><div style={{ width: 10, height: 10, borderRadius: 3, background: "#86EFAC" }} /><span style={{ fontSize: 11, color: "#64748B", fontFamily: FONT_FAMILY }}>{tr("Income", "รายรับ")}</span></div>
                   </div>
                 </div>
               </>
@@ -2860,7 +3030,7 @@ export default function FinanceTracker() {
           {monthTxns.length === 0 && (
             <div style={{ textAlign: "center", padding: "56px 20px" }}>
               <div style={{ width: 64, height: 64, borderRadius: 22, background: "linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}><BarChart2 size={28} color={T.indigo} /></div>
-              <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "#334155", fontFamily: FONT_FAMILY }}>No data yet</p>
+              <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 600, color: "#334155", fontFamily: FONT_FAMILY }}>{tr("No data yet", "ยังไม่มีข้อมูล")}</p>
               <p style={{ ...T.muted, margin: 0, fontWeight: 400, fontFamily: FONT_FAMILY }}>{t.addToSeeAnalytics}</p>
             </div>
           )}
@@ -2870,7 +3040,7 @@ export default function FinanceTracker() {
       {/* ══ GROUPS (SplitPro) ══ */}
       {tab === "groups" && (
         <div style={{ padding: "0" }}>
-          <GroupsTab />
+          <GroupsTab profile={profile} onLinkUpsert={linkUpsertTx} onLinkDelete={linkDeleteTx} language={language} />
         </div>
       )}
 
@@ -2976,7 +3146,7 @@ export default function FinanceTracker() {
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                               <span style={{ fontSize: 13, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{tx.note || cat.label}</span>
-                              {isIncome && <span style={{ fontSize: 10, fontWeight: 600, background: "#F0FDF4", color: "#15803D", padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>income</span>}
+                              {isIncome && <span style={{ fontSize: 10, fontWeight: 600, background: "#F0FDF4", color: "#15803D", padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{tr("income", "รายรับ")}</span>}
                               {!isIncome && tx.split && <span style={{ fontSize: 10, fontWeight: 600, background: "#EEF2FF", color: T.indigo, padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{t.split}</span>}
                               {tx.recurringId && <span style={{ fontSize: 10, fontWeight: 600, background: "#FEFCE8", color: "#A16207", padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{t.auto}</span>}
                             </div>
@@ -3077,18 +3247,32 @@ export default function FinanceTracker() {
       {/* ══ SETTINGS ══ */}
       {tab === "settings" && (
         <div style={{ padding: "0 16px" }}>
+          {/* Profile — your identity in Groups */}
+          <CardWrap>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+              <Settings size={16} color={T.indigo} />
+              <p style={{ ...T.h2, margin: 0, fontFamily: FONT_FAMILY }}>{tr("Profile", "โปรไฟล์")}</p>
+            </div>
+            <p style={{ ...T.muted, margin: "0 0 12px", fontSize: 12, fontFamily: FONT_FAMILY }}>{tr("Your name shown as “You” across Groups.", "ชื่อของคุณจะแสดงเป็น “คุณ” ในกลุ่ม")}</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 14, background: "#6C63FF", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 15, fontFamily: FONT_FAMILY, flexShrink: 0 }}>{(profile.initials || "YO").toUpperCase().slice(0, 2)}</div>
+              <input value={profile.name} placeholder={tr("Your name", "ชื่อของคุณ")}
+                onChange={(e) => { const name = e.target.value; setProfile({ name, initials: (name.trim() || "You").slice(0, 2).toUpperCase() }); }}
+                style={{ ...T.input, flex: 1 }} />
+            </div>
+          </CardWrap>
           {/* Appearance & Language */}
           <CardWrap>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
               <Settings size={16} color={T.indigo} />
-              <p style={{ ...T.h2, margin: 0, fontFamily: FONT_FAMILY }}>Appearance & Language</p>
+              <p style={{ ...T.h2, margin: 0, fontFamily: FONT_FAMILY }}>{tr("Appearance & Language", "การแสดงผลและภาษา")}</p>
             </div>
             {/* Language row */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ width: 38, height: 38, borderRadius: 12, background: T.indigoLight, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Globe size={17} color={T.indigo} /></div>
                 <div>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>Language</p>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{tr("Language", "ภาษา")}</p>
                   <p style={{ margin: 0, fontSize: 12, color: "#94A3B8", fontFamily: FONT_FAMILY }}>{language === "EN" ? "English" : "ภาษาไทย"}</p>
                 </div>
               </div>
@@ -3099,12 +3283,12 @@ export default function FinanceTracker() {
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ width: 38, height: 38, borderRadius: 12, background: T.indigoLight, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Type size={17} color={T.indigo} /></div>
                 <div>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>Text Size</p>
-                  <p style={{ margin: 0, fontSize: 12, color: "#94A3B8", fontFamily: FONT_FAMILY }}>{Math.round(textScale * 100)}% of standard</p>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#0F172A", fontFamily: FONT_FAMILY }}>{tr("Text Size", "ขนาดตัวอักษร")}</p>
+                  <p style={{ margin: 0, fontSize: 12, color: "#94A3B8", fontFamily: FONT_FAMILY }}>{Math.round(textScale * 100)}{tr("% of standard", "% ของมาตรฐาน")}</p>
                 </div>
               </div>
               <button onClick={() => setShowTextSizer(true)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#FFFFFF", border: "1.5px solid #E2E8F0", cursor: "pointer", padding: "8px 14px", borderRadius: 99, fontFamily: FONT_FAMILY, fontSize: 12, fontWeight: 600, color: "#475569", boxShadow: "0 1px 4px rgba(15,23,42,0.07)" }}>
-                <Type size={13} color={T.indigo} /> Adjust
+                <Type size={13} color={T.indigo} /> {tr("Adjust", "ปรับ")}
               </button>
             </div>
           </CardWrap>
@@ -3113,14 +3297,14 @@ export default function FinanceTracker() {
           <CardWrap>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
               <BookOpen size={16} color={T.indigo} />
-              <p style={{ ...T.h2, margin: 0, fontFamily: FONT_FAMILY }}>Categories</p>
+              <p style={{ ...T.h2, margin: 0, fontFamily: FONT_FAMILY }}>{tr("Categories", "หมวดหมู่")}</p>
             </div>
-            <p style={{ ...T.muted, margin: "0 0 14px", fontSize: 12, fontFamily: FONT_FAMILY }}>Add, rename, recolor or remove categories. Changes apply everywhere instantly.</p>
-            {[{ type: "expense", list: CATEGORIES, label: "Expense" }, { type: "income", list: INCOME_CATS, label: "Income" }].map(({ type, list, label }) => (
+            <p style={{ ...T.muted, margin: "0 0 14px", fontSize: 12, fontFamily: FONT_FAMILY }}>{tr("Add, rename, recolor or remove categories. Changes apply everywhere instantly.", "เพิ่ม เปลี่ยนชื่อ เปลี่ยนสี หรือลบหมวดหมู่ การเปลี่ยนแปลงจะมีผลทุกที่ทันที")}</p>
+            {[{ type: "expense", list: CATEGORIES, label: tr("Expense", "รายจ่าย") }, { type: "income", list: INCOME_CATS, label: tr("Income", "รายรับ") }].map(({ type, list, label }) => (
               <div key={type} style={{ marginBottom: 14 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: type === "income" ? "#15803D" : T.indigo, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: FONT_FAMILY }}>{label}</span>
-                  <button onClick={() => setCatModal({ type, cat: null })} style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 11px", borderRadius: 99, border: "none", cursor: "pointer", fontFamily: FONT_FAMILY, fontWeight: 600, fontSize: 12, background: T.indigoLight, color: T.indigo }}><Plus size={12} /> Add</button>
+                  <button onClick={() => setCatModal({ type, cat: null })} style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 11px", borderRadius: 99, border: "none", cursor: "pointer", fontFamily: FONT_FAMILY, fontWeight: 600, fontSize: 12, background: T.indigoLight, color: T.indigo }}><Plus size={12} /> {tr("Add", "เพิ่ม")}</button>
                 </div>
                 {list.map((cat) => (
                   <div key={cat.value} style={{ display: "flex", alignItems: "center", gap: 11, padding: "8px 0", borderTop: "1px solid #F1F5F9" }}>
@@ -3137,7 +3321,7 @@ export default function FinanceTracker() {
           <CardWrap>
             <p style={{ ...T.h2, margin: "0 0 16px", fontFamily: FONT_FAMILY }}>{t.budgetLimits}</p>
             <p style={{ ...T.label, margin: "0 0 8px", fontFamily: FONT_FAMILY }}>{t.monthlyTotalTHB}</p>
-            <input type="text" inputMode="decimal" placeholder="e.g. 30,000" value={budgets.total}
+            <input type="text" inputMode="decimal" placeholder={tr("e.g. 30,000", "เช่น 30,000")} value={budgets.total}
               onChange={(e) => setBudgets({ ...budgets, total: e.target.value })}
               style={{ ...T.input, fontFamily: MONO_FAMILY, fontSize: 18, fontWeight: 600, marginBottom: 16 }} />
             <p style={{ ...T.label, margin: "0 0 10px", fontFamily: FONT_FAMILY }}>{t.perCatLimits}</p>
@@ -3154,8 +3338,8 @@ export default function FinanceTracker() {
 
           {/* NEW: Export Data card */}
           <CardWrap>
-            <p style={{ ...T.h2, margin: "0 0 4px", fontFamily: FONT_FAMILY }}>📤 Export Data</p>
-            <p style={{ ...T.muted, margin: "0 0 14px", fontSize: 12, fontFamily: FONT_FAMILY }}>Download all {transactions.length} transactions as a CSV file</p>
+            <p style={{ ...T.h2, margin: "0 0 4px", fontFamily: FONT_FAMILY }}>📤 {tr("Export Data", "ส่งออกข้อมูล")}</p>
+            <p style={{ ...T.muted, margin: "0 0 14px", fontSize: 12, fontFamily: FONT_FAMILY }}>{tr(`Download all ${transactions.length} transactions as a CSV file`, `ดาวน์โหลดรายการทั้งหมด ${transactions.length} รายการเป็นไฟล์ CSV`)}</p>
             <button onClick={handleExportCSV} style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 18px", borderRadius: 14, border: "none", background: "#0F172A", color: "#F8FAFC", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY }}>
               <Download size={15} /> Export CSV
             </button>
@@ -3210,7 +3394,7 @@ export default function FinanceTracker() {
         {[
           { id: "home",      label: t.home,      Icon: Home },
           { id: "analytics", label: t.analytics, Icon: BarChart2 },
-          { id: "groups",    label: "Groups",     Icon: Wallet },
+          { id: "groups",    label: tr("Groups", "กลุ่ม"), Icon: Wallet },
           { id: "statement", label: t.statement, Icon: BookOpen },
           { id: "settings",  label: t.settings,  Icon: Settings },
         ].map(({ id, label, Icon }) => {
