@@ -1901,9 +1901,9 @@ function QuickAddSheet({ expenseCats, incomeCats, defaultCat, defaultType = "exp
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 650, display: "flex", alignItems: "flex-end", justifyContent: "center", fontFamily: FONT_FAMILY }}>
       <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(4px)" }} />
-      <div style={{ position: "relative", background: "#FFFDF8", borderRadius: "28px 28px 0 0", padding: "4px 18px 18px", width: "100%", maxWidth: 430, boxShadow: "0 -12px 48px rgba(15,23,42,0.22)", animation: "spSlideUp 0.32s cubic-bezier(0.32,0.72,0,1)" }}>
-        <div style={{ width: 40, height: 4, background: "#E7E2D6", borderRadius: 99, margin: "8px auto 10px" }} />
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+      <div style={{ position: "relative", background: "#FFFDF8", borderRadius: "26px 26px 0 0", padding: "2px 18px 14px", width: "100%", maxWidth: 430, boxShadow: "0 -12px 48px rgba(15,23,42,0.22)", animation: "spSlideUp 0.32s cubic-bezier(0.32,0.72,0,1)" }}>
+        <div style={{ width: 38, height: 4, background: "#E7E2D6", borderRadius: 99, margin: "7px auto 8px" }} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
           <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0F172A", fontFamily: FONT_FAMILY }}>🐱 {tr("Quick Add", "เพิ่มด่วน")}</p>
           <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 99, border: "none", background: "#F1ECE0", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#94896E" }}><X size={15} /></button>
         </div>
@@ -1916,17 +1916,17 @@ function QuickAddSheet({ expenseCats, incomeCats, defaultCat, defaultType = "exp
         </div>
 
         {/* Amount display */}
-        <div style={{ textAlign: "center", padding: "4px 0 8px" }}>
-          <span style={{ fontSize: 22, fontWeight: 700, color: amt > 0 ? accent : "#CBBFA3", fontFamily: MONO_FAMILY, verticalAlign: "middle", marginRight: 4 }}>{type === "income" ? "+฿" : "฿"}</span>
-          <span style={{ fontSize: 40, fontWeight: 700, color: amt > 0 ? "#0F172A" : "#CBBFA3", fontFamily: MONO_FAMILY, letterSpacing: "-2px" }}>{amount || "0"}</span>
+        <div style={{ textAlign: "center", padding: "2px 0 6px" }}>
+          <span style={{ fontSize: 19, fontWeight: 700, color: amt > 0 ? accent : "#CBBFA3", fontFamily: MONO_FAMILY, verticalAlign: "middle", marginRight: 4 }}>{type === "income" ? "+฿" : "฿"}</span>
+          <span style={{ fontSize: 34, fontWeight: 700, color: amt > 0 ? "#0F172A" : "#CBBFA3", fontFamily: MONO_FAMILY, letterSpacing: "-1.5px" }}>{amount || "0"}</span>
         </div>
 
         {/* Category quick row */}
-        <div style={{ display: "flex", gap: 7, overflowX: "auto", padding: "2px 2px 8px", WebkitOverflowScrolling: "touch" }}>
+        <div style={{ display: "flex", gap: 7, overflowX: "auto", padding: "2px 2px 7px", WebkitOverflowScrolling: "touch" }}>
           {categories.map((c) => {
             const on = c.value === category;
             return (
-              <button key={c.value} onClick={() => setCategory(c.value)} style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 99, border: `2px solid ${on ? c.bar : "transparent"}`, background: on ? c.pastelBg : "#F4EFE4", color: on ? c.pastelText : "#8C8674", cursor: "pointer", fontFamily: FONT_FAMILY, fontSize: 13, fontWeight: 600, transition: "all 0.15s" }}>
+              <button key={c.value} onClick={() => setCategory(c.value)} style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 6, padding: "6px 11px", borderRadius: 99, border: `2px solid ${on ? c.bar : "transparent"}`, background: on ? c.pastelBg : "#F4EFE4", color: on ? c.pastelText : "#8C8674", cursor: "pointer", fontFamily: FONT_FAMILY, fontSize: 13, fontWeight: 600, transition: "all 0.15s" }}>
                 <span style={{ fontSize: 16 }}>{c.icon}</span>{c.labelShort}
               </button>
             );
@@ -1934,12 +1934,12 @@ function QuickAddSheet({ expenseCats, incomeCats, defaultCat, defaultType = "exp
         </div>
 
         {/* Note */}
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={tr("Add a note… (optional)", "เพิ่มโน้ต… (ไม่บังคับ)")} style={{ width: "100%", boxSizing: "border-box", padding: "9px 14px", borderRadius: 12, border: "1.5px solid #EAE3D4", background: "#FFFFFF", fontSize: 14, fontFamily: FONT_FAMILY, color: "#0F172A", outline: "none", marginBottom: 8 }} />
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={tr("Add a note… (optional)", "เพิ่มโน้ต… (ไม่บังคับ)")} style={{ width: "100%", boxSizing: "border-box", padding: "8px 14px", borderRadius: 12, border: "1.5px solid #EAE3D4", background: "#FFFFFF", fontSize: 13, fontFamily: FONT_FAMILY, color: "#0F172A", outline: "none", marginBottom: 7 }} />
 
         {/* Keypad */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, marginBottom: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, marginBottom: 7 }}>
           {keys.map((k) => (
-            <button key={k} onClick={() => press(k)} style={{ padding: "10px 0", borderRadius: 12, border: "none", background: k === "⌫" ? "#F1ECE0" : "#FFFFFF", boxShadow: "0 1px 4px rgba(15,23,42,0.06)", fontSize: 19, fontWeight: 600, color: "#0F172A", fontFamily: MONO_FAMILY, cursor: "pointer", transition: "transform 0.08s" }}
+            <button key={k} onClick={() => press(k)} style={{ padding: "7px 0", borderRadius: 11, border: "none", background: k === "⌫" ? "#F1ECE0" : "#FFFFFF", boxShadow: "0 1px 4px rgba(15,23,42,0.06)", fontSize: 18, fontWeight: 600, color: "#0F172A", fontFamily: MONO_FAMILY, cursor: "pointer", transition: "transform 0.08s" }}
               onMouseDown={(e) => e.currentTarget.style.transform = "scale(0.94)"}
               onMouseUp={(e) => e.currentTarget.style.transform = "scale(1)"}
               onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}>
@@ -1949,8 +1949,8 @@ function QuickAddSheet({ expenseCats, incomeCats, defaultCat, defaultType = "exp
         </div>
 
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={onDetailed} style={{ flexShrink: 0, padding: "13px 18px", borderRadius: 16, border: "1.5px solid #EAE3D4", background: "#FFFFFF", color: "#8A7E63", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY }}>{tr("More", "เพิ่มเติม")}</button>
-          <button onClick={() => amt > 0 && onSave({ category, amount: amt, note, type })} disabled={amt <= 0} style={{ flex: 1, padding: "13px", borderRadius: 16, border: "none", background: amt > 0 ? accent : "#E7E2D6", color: "#fff", fontSize: 16, fontWeight: 700, cursor: amt > 0 ? "pointer" : "not-allowed", fontFamily: FONT_FAMILY, boxShadow: amt > 0 ? `0 8px 22px ${accent}55` : "none", transition: "all 0.18s" }}>
+          <button onClick={onDetailed} style={{ flexShrink: 0, padding: "11px 18px", borderRadius: 14, border: "1.5px solid #EAE3D4", background: "#FFFFFF", color: "#8A7E63", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY }}>{tr("More", "เพิ่มเติม")}</button>
+          <button onClick={() => amt > 0 && onSave({ category, amount: amt, note, type })} disabled={amt <= 0} style={{ flex: 1, padding: "11px", borderRadius: 14, border: "none", background: amt > 0 ? accent : "#E7E2D6", color: "#fff", fontSize: 16, fontWeight: 700, cursor: amt > 0 ? "pointer" : "not-allowed", fontFamily: FONT_FAMILY, boxShadow: amt > 0 ? `0 8px 22px ${accent}55` : "none", transition: "all 0.18s" }}>
             {tr("Save", "บันทึก")} {amt > 0 ? `฿${amt.toLocaleString()}` : ""}
           </button>
         </div>
