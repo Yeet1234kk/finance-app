@@ -611,10 +611,10 @@ function SpGroupDetail({ data, me, gid, allBalances, onBack, onAddExpense, onEdi
       {/* Cover */}
       <div style={{ background: `linear-gradient(160deg,${g.color}44 0%,var(--bg) 60%)`, padding: "44px 20px 0", position: "relative" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-          <button onClick={onBack} style={{ width: 38, height: 38, borderRadius: 13, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <button onClick={onBack} style={{ width: 38, height: 38, borderRadius: 13, background: "var(--glass-bg)", backdropFilter: "blur(12px)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span style={{ fontSize: 16, color: "var(--text)" }}>←</span>
           </button>
-          <button onClick={() => { if (window.confirm(L.confirmDelGroup(g.name.replace(/^[^\w\s]+\s*/, "")))) onDeleteGroup(gid); }} style={{ width: 38, height: 38, borderRadius: 13, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", border: "1px solid var(--negative-tint-border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <button onClick={() => { if (window.confirm(L.confirmDelGroup(g.name.replace(/^[^\w\s]+\s*/, "")))) onDeleteGroup(gid); }} style={{ width: 38, height: 38, borderRadius: 13, background: "var(--glass-bg)", backdropFilter: "blur(12px)", border: "1px solid var(--negative-tint-border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span style={{ fontSize: 15, color: "var(--negative)" }}>🗑</span>
           </button>
         </div>
@@ -1361,6 +1361,9 @@ const THEME_CSS = `
   --budget-safe-bar:#10b981; --budget-safe-text:#059669; --budget-safe-track:#d1fae5;
   --budget-warn-bar:#f59e0b; --budget-warn-text:#d97706; --budget-warn-track:#fef3c7;
   --budget-danger-bar:#ef4444; --budget-danger-text:#dc2626; --budget-danger-track:#fee2e2;
+  /* Frosted-glass surfaces (sticky headers, bottom nav, floating circular buttons) --
+     was a literal near-white rgba(), so it stayed a bright light-mode bar even in dark mode. */
+  --glass-bg:rgba(255,255,255,0.92); --glass-border:rgba(226,232,240,0.7);
 }
 [data-theme="dark"]{
   --bg:#0f172a; --surface:#1a2236; --surface-2:#222a3d; --fill:#222a3d;
@@ -1374,6 +1377,7 @@ const THEME_CSS = `
   --budget-safe-bar:#4ade80; --budget-safe-text:#4ade80; --budget-safe-track:rgba(74,222,128,0.16);
   --budget-warn-bar:#fbbf24; --budget-warn-text:#fbbf24; --budget-warn-track:rgba(251,191,36,0.16);
   --budget-danger-bar:#f87171; --budget-danger-text:#f87171; --budget-danger-track:rgba(248,113,113,0.16);
+  --glass-bg:rgba(26,34,54,0.86); --glass-border:rgba(255,255,255,0.09);
 }
 body{background:var(--bg);}
 /* Smooth theme + state transitions app-wide. Elements that already declare their own
@@ -1427,7 +1431,7 @@ function YearlySummary({ transactions, language, yearlyYear, setYearlyYear, setS
 
     return (
         <div style={{ position: "fixed", inset: 0, zIndex: 210, background: "var(--bg)", overflowY: "auto", fontFamily: FONT_FAMILY }}>
-          <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(248,247,244,0.94)", backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(226,232,240,0.6)", padding: "14px 20px", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ position: "sticky", top: 0, zIndex: 10, background: "var(--glass-bg)", backdropFilter: "blur(16px)", borderBottom: "1px solid var(--glass-border)", padding: "14px 20px", display: "flex", alignItems: "center", gap: 12 }}>
             <button onClick={() => { setSelectedMonth(null); setSelectedCat(null); }} style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--surface)", border: "none", cursor: "pointer", padding: "8px 16px", borderRadius: 99, fontFamily: FONT_FAMILY, fontSize: 13, fontWeight: 600, color: "var(--text)", boxShadow: "0 2px 8px rgba(15,23,42,0.08)", flexShrink: 0 }}>
               <ArrowLeft size={14} /> {yearlyYear}
             </button>
@@ -1526,7 +1530,7 @@ function YearlySummary({ transactions, language, yearlyYear, setYearlyYear, setS
   // ── Main year overview ──
   return (
       <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "var(--bg)", overflowY: "auto", fontFamily: FONT_FAMILY }}>
-        <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(248,247,244,0.92)", backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(226,232,240,0.6)", padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ position: "sticky", top: 0, zIndex: 10, background: "var(--glass-bg)", backdropFilter: "blur(16px)", borderBottom: "1px solid var(--glass-border)", padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button onClick={() => setShowYearlySummary(false)} style={{ display: "flex", alignItems: "center", gap: 7, background: "var(--surface)", border: "none", cursor: "pointer", padding: "8px 16px", borderRadius: 99, fontFamily: FONT_FAMILY, fontSize: 13, fontWeight: 600, color: "var(--text)", boxShadow: "0 2px 8px rgba(15,23,42,0.08)" }}>
             <ArrowLeft size={14} /> Dashboard
           </button>
@@ -2632,7 +2636,7 @@ export default function FinanceTracker() {
         return (
           <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "var(--bg)", overflowY: "auto", fontFamily: FONT_FAMILY }}>
             {/* Sticky top nav */}
-            <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(248,247,244,0.94)", backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(226,232,240,0.6)", padding: "14px 20px", display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ position: "sticky", top: 0, zIndex: 10, background: "var(--glass-bg)", backdropFilter: "blur(16px)", borderBottom: "1px solid var(--glass-border)", padding: "14px 20px", display: "flex", alignItems: "center", gap: 10 }}>
               <button onClick={closeDetail}
                 style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--surface)", border: "none", cursor: "pointer", padding: "8px 16px", borderRadius: 99, fontFamily: FONT_FAMILY, fontSize: 13, fontWeight: 600, color: "var(--text)", boxShadow: "0 2px 8px rgba(15,23,42,0.08)", flexShrink: 0 }}>
                 <ArrowLeft size={14} /> {t.backStatements}
@@ -3385,7 +3389,7 @@ export default function FinanceTracker() {
 
           return (
             <div style={{ position: "fixed", inset: 0, zIndex: 150, background: "var(--bg)", overflowY: "auto", fontFamily: FONT_FAMILY }}>
-              <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(248,247,244,0.94)", backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(226,232,240,0.6)", padding: "14px 20px", display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ position: "sticky", top: 0, zIndex: 10, background: "var(--glass-bg)", backdropFilter: "blur(16px)", borderBottom: "1px solid var(--glass-border)", padding: "14px 20px", display: "flex", alignItems: "center", gap: 10 }}>
                 <button onClick={() => { setOpenMonth(null); setStmtCat(null); }} style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--surface)", border: "none", cursor: "pointer", padding: "8px 16px", borderRadius: 99, fontFamily: FONT_FAMILY, fontSize: 13, fontWeight: 600, color: "var(--text)", boxShadow: "0 2px 8px rgba(15,23,42,0.08)", flexShrink: 0 }}>
                   <ArrowLeft size={14} /> {stmtYear}
                 </button>
@@ -3731,7 +3735,7 @@ export default function FinanceTracker() {
       )}
 
       {/* ══ BOTTOM NAV ══ */}
-      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, zIndex: 100, background: "rgba(255,255,255,0.92)", backdropFilter: "blur(20px)", borderTop: "1px solid rgba(226,232,240,0.7)", display: "flex", padding: "0 4px" }}>
+      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, zIndex: 100, background: "var(--glass-bg)", backdropFilter: "blur(20px)", borderTop: "1px solid var(--glass-border)", display: "flex", padding: "0 4px" }}>
         {[
           { id: "home",      label: t.home,      Icon: Home },
           { id: "analytics", label: t.analytics, Icon: BarChart2 },
