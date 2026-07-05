@@ -1099,6 +1099,9 @@ const TRANSLATIONS = {
     of:               "of",
     budgetExceeded:   "Budget exceeded!",
     approachingBudget:"Approaching your budget limit",
+    availableToSpend: "Available to Spend",
+    income:           "income",
+    overspent:        "Overspent this month",
     overLimit:        "Over limit!",
     nearLimit:        "Near limit",
     top:              "Top",
@@ -1198,6 +1201,9 @@ const TRANSLATIONS = {
     of:               "จาก",
     budgetExceeded:   "เกินงบประมาณ!",
     approachingBudget:"ใกล้ถึงวงเงินงบประมาณ",
+    availableToSpend: "ยอดที่ใช้จ่ายได้",
+    income:           "รายรับ",
+    overspent:        "ใช้จ่ายเกินรายรับเดือนนี้",
     overLimit:        "เกินวงเงิน!",
     nearLimit:        "ใกล้วงเงิน",
     top:              "อันดับ 1",
@@ -2167,6 +2173,8 @@ export default function FinanceTracker() {
   const pendingTxns  = transactions.filter((tx) => tx.pending);
   const monthTxns    = transactions.filter((tx) => !tx.pending && tx.date.startsWith(month));
   const monthlyTotal = monthTxns.filter((tx) => tx.type !== "income").reduce((s, tx) => s + tx.amount, 0);
+  const monthIncomeTotal = monthTxns.filter((tx) => tx.type === "income").reduce((s, tx) => s + tx.amount, 0);
+  const availableToSpend = monthIncomeTotal - monthlyTotal;
   const totalBudget  = parseFloat(budgets.total) || 0;
   const budgetPct    = totalBudget > 0 ? Math.min(monthlyTotal / totalBudget, 1) : 0;
   const bc           = budgetColor(budgetPct);
@@ -2579,6 +2587,14 @@ export default function FinanceTracker() {
                 {mIncomeTotal > 0 && (
                   <p style={{ margin: "4px 0 0", fontSize: 16, fontWeight: 600, color: "#15803D", fontFamily: MONO_FAMILY }}>+{fmt(mIncomeTotal)} income</p>
                 )}
+                {mIncomeTotal > 0 && (() => {
+                  const mAvailable = mIncomeTotal - mTotal;
+                  return (
+                    <p style={{ margin: "6px 0 0", fontSize: 13, fontWeight: 600, color: mAvailable >= 0 ? "#15803D" : "#EF4444", fontFamily: FONT_FAMILY }}>
+                      {t.availableToSpend}: <span style={{ fontFamily: MONO_FAMILY }}>{mAvailable < 0 && "−"}{fmt(Math.abs(mAvailable))}</span>
+                    </p>
+                  );
+                })()}
                 <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--text-3)", fontWeight: 400, fontFamily: FONT_FAMILY, lineHeight: 1.6 }}>{mTxns.length} {t.txRecorded}</p>
               </div>
 
@@ -2788,6 +2804,26 @@ export default function FinanceTracker() {
 
         <p style={{ ...T.muted, margin: "0 0 8px", fontSize: 13, fontFamily: FONT_FAMILY, fontWeight: 400 }}>{t.totalSpent}</p>
         <span style={{ ...T.h1 }}>{fmt(monthlyTotal)}</span>
+
+        {monthIncomeTotal > 0 && (
+          <div style={{ marginTop: 16, ...T.card, padding: "16px 20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: FONT_FAMILY }}>{t.availableToSpend}</span>
+              {availableToSpend < 0 && (
+                <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "#EF4444", fontFamily: FONT_FAMILY }}>
+                  <AlertTriangle size={12} /> {t.overspent}
+                </span>
+              )}
+            </div>
+            <span style={{ fontFamily: MONO_FAMILY, fontSize: 30, fontWeight: 700, letterSpacing: "-1px", color: availableToSpend >= 0 ? "#15803D" : "#EF4444" }}>
+              {availableToSpend < 0 && "−"}{fmt(Math.abs(availableToSpend))}
+            </span>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+              <span style={{ ...T.muted, fontSize: 12, fontFamily: FONT_FAMILY }}>+{fmt(monthIncomeTotal)} {t.income}</span>
+              <span style={{ ...T.muted, fontSize: 12, fontFamily: FONT_FAMILY }}>−{fmt(monthlyTotal)} {t.spent}</span>
+            </div>
+          </div>
+        )}
 
         {topCat && !totalBudget && (
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 12, padding: "5px 12px", background: "var(--surface)", borderRadius: 99, boxShadow: "0 2px 8px rgba(15,23,42,0.07)" }}>
@@ -3246,6 +3282,14 @@ export default function FinanceTracker() {
                   {mIncomeTotal > 0 && (
                     <p style={{ margin: "4px 0 0", fontSize: 15, fontWeight: 600, color: "#15803D", fontFamily: MONO_FAMILY }}>+{fmt(mIncomeTotal)} income</p>
                   )}
+                  {mIncomeTotal > 0 && (() => {
+                    const mAvailable = mIncomeTotal - mTotal;
+                    return (
+                      <p style={{ margin: "6px 0 0", fontSize: 13, fontWeight: 600, color: mAvailable >= 0 ? "#15803D" : "#EF4444", fontFamily: FONT_FAMILY }}>
+                        {t.availableToSpend}: <span style={{ fontFamily: MONO_FAMILY }}>{mAvailable < 0 && "−"}{fmt(Math.abs(mAvailable))}</span>
+                      </p>
+                    );
+                  })()}
                   <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--text-3)", fontWeight: 400, fontFamily: FONT_FAMILY, lineHeight: 1.6 }}>{mTxns.length} {t.txIn(mName)}</p>
                 </div>
                 {mTxns.length === 0 ? (
