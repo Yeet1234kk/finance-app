@@ -3144,9 +3144,13 @@ export default function FinanceTracker() {
               const c = isIncome ? getIncomeCategory(catVal, language) : getCat(catVal, language);
               txs.sort((a, b) => new Date(b.date) - new Date(a.date));
               return { catVal, c, isIncome, txs, total: txs.reduce((s, x) => s + x.amount, 0) };
-            }).sort((a, b) => b.total - a.total);
+            });
+            // Stack expense categories and income categories as two separate groups instead
+            // of one list sorted purely by amount, where they'd otherwise interleave.
+            const expenseEntries = entries.filter((e) => !e.isIncome).sort((a, b) => b.total - a.total);
+            const incomeEntries  = entries.filter((e) => e.isIncome).sort((a, b) => b.total - a.total);
 
-            return entries.map(({ catVal, c, isIncome, txs, total }) => {
+            const renderCatCard = ({ catVal, c, isIncome, txs, total }) => {
               const open = searching || !!expandedHomeCats[catVal];
               return (
                 <div key={catVal} style={{ ...T.card, padding: 0, marginBottom: 9, overflow: "hidden" }}>
@@ -3189,7 +3193,24 @@ export default function FinanceTracker() {
                   )}
                 </div>
               );
-            });
+            };
+
+            return (
+              <>
+                {expenseEntries.length > 0 && (
+                  <>
+                    <p style={{ ...T.label, margin: "4px 0 8px", fontFamily: FONT_FAMILY }}>{tr("Expenses", "รายจ่าย")}</p>
+                    {expenseEntries.map(renderCatCard)}
+                  </>
+                )}
+                {incomeEntries.length > 0 && (
+                  <>
+                    <p style={{ ...T.label, margin: "16px 0 8px", fontFamily: FONT_FAMILY }}>{tr("Income", "รายรับ")}</p>
+                    {incomeEntries.map(renderCatCard)}
+                  </>
+                )}
+              </>
+            );
           })()}
         </div>
       )}
