@@ -1757,16 +1757,16 @@ function TextSizerOverlay({ textScale, setTextScale, onClose, language = "EN" })
 
           {/* Summary row */}
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
-            <p style={{ margin: 0, fontSize: `${11 * textScale}px`, fontWeight: 500, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT_FAMILY, transition: "font-size 0.15s" }}>{tr("Monthly Summary", "สรุปรายเดือน")}</p>
-            <span style={{ fontSize: `${10 * textScale}px`, fontWeight: 600, background: "var(--primary-tint)", color: "var(--primary)", padding: "2px 7px", borderRadius: 99, fontFamily: FONT_FAMILY, transition: "font-size 0.15s" }}>Jun 2025</span>
+            <p style={{ margin: 0, fontSize: 11, fontWeight: 500, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT_FAMILY }}>{tr("Monthly Summary", "สรุปรายเดือน")}</p>
+            <span style={{ fontSize: 10, fontWeight: 600, background: "var(--primary-tint)", color: "var(--primary)", padding: "2px 7px", borderRadius: 99, fontFamily: FONT_FAMILY }}>Jun 2025</span>
           </div>
-          <p style={{ margin: "0 0 10px", fontSize: `${28 * textScale}px`, fontWeight: 700, letterSpacing: "-1.5px", color: "var(--text)", lineHeight: 1.05, fontFamily: MONO_FAMILY, transition: "font-size 0.15s" }}>฿12,840</p>
+          <p style={{ margin: "0 0 10px", fontSize: 28, fontWeight: 700, letterSpacing: "-1.5px", color: "var(--text)", lineHeight: 1.05, fontFamily: MONO_FAMILY }}>฿12,840</p>
 
           {/* Budget bar */}
           <div style={{ marginBottom: 12 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-              <span style={{ fontSize: `${10 * textScale}px`, color: "var(--text-3)", fontFamily: FONT_FAMILY, transition: "font-size 0.15s" }}>{tr("Budget used", "ใช้งบไปแล้ว")}</span>
-              <span style={{ fontSize: `${10 * textScale}px`, fontWeight: 600, color: "#F59E0B", fontFamily: MONO_FAMILY, transition: "font-size 0.15s" }}>64%</span>
+              <span style={{ fontSize: 10, color: "var(--text-3)", fontFamily: FONT_FAMILY }}>{tr("Budget used", "ใช้งบไปแล้ว")}</span>
+              <span style={{ fontSize: 10, fontWeight: 600, color: "#F59E0B", fontFamily: MONO_FAMILY }}>64%</span>
             </div>
             <div style={{ height: 5, background: "#FEF3C7", borderRadius: 99, overflow: "hidden" }}>
               <div style={{ height: "100%", width: "64%", background: "#F59E0B", borderRadius: 99 }} />
@@ -1775,12 +1775,12 @@ function TextSizerOverlay({ textScale, setTextScale, onClose, language = "EN" })
 
           {/* Transaction item */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--surface)", borderRadius: 14, boxShadow: "0 2px 8px rgba(15,23,42,0.05)" }}>
-            <div style={{ width: `${36 * Math.min(textScale, 1.15)}px`, height: `${36 * Math.min(textScale, 1.15)}px`, minWidth: 28, borderRadius: 11, background: "#FFF8F0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: `${17 * textScale}px`, flexShrink: 0, transition: "all 0.15s" }}>🍜</div>
+            <div style={{ width: 36, height: 36, minWidth: 28, borderRadius: 11, background: "#FFF8F0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>🍜</div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: `${13 * textScale}px`, fontWeight: 600, color: "var(--text)", fontFamily: FONT_FAMILY, transition: "font-size 0.15s", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tr("Your Expenses", "รายจ่ายของคุณ")}</p>
-              <p style={{ margin: "1px 0 0", fontSize: `${11 * textScale}px`, color: "var(--text-3)", fontFamily: FONT_FAMILY, transition: "font-size 0.15s" }}>{tr("Food & Drink · Jun 6", "อาหารและเครื่องดื่ม · 6 มิ.ย.")}</p>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text)", fontFamily: FONT_FAMILY, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tr("Your Expenses", "รายจ่ายของคุณ")}</p>
+              <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--text-3)", fontFamily: FONT_FAMILY }}>{tr("Food & Drink · Jun 6", "อาหารและเครื่องดื่ม · 6 มิ.ย.")}</p>
             </div>
-            <span style={{ fontSize: `${14 * textScale}px`, fontWeight: 700, color: "#EF4444", fontFamily: MONO_FAMILY, flexShrink: 0, transition: "font-size 0.15s" }}>−฿320</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#EF4444", fontFamily: MONO_FAMILY, flexShrink: 0 }}>−฿320</span>
           </div>
         </div>
 
@@ -2132,8 +2132,7 @@ export default function FinanceTracker() {
   useEffect(() => lsSet("ft_subs",    subscriptions), [subscriptions]);
   useEffect(() => lsSet("ft_budgets", budgets),       [budgets]);
   useEffect(() => lsSet("ft_lang",    language),      [language]);
-  useEffect(() => { lsSet("ft_text_scale", textScale); document.documentElement.style.setProperty("--app-text-scale", textScale); }, [textScale]);
-  useEffect(() => { document.documentElement.style.setProperty("--app-text-scale", textScale); }, []);
+  useEffect(() => lsSet("ft_text_scale", textScale), [textScale]);
   useEffect(() => { lsSet("ft_dark", dark); document.documentElement.setAttribute("data-theme", dark ? "dark" : "light"); }, [dark]);
   useEffect(() => lsSet("ft_dismissed_alerts", dismissedAlerts), [dismissedAlerts]);
   useEffect(() => lsSet("ft_cats_exp", cats.exp), [cats.exp]);
@@ -2432,7 +2431,7 @@ export default function FinanceTracker() {
 
   // ══════════════════════════════════════════════════════════════════════════
   return (
-    <div style={{ fontFamily: FONT_FAMILY, maxWidth: 430, margin: "0 auto", minHeight: "100vh", background: T.pageBg, paddingBottom: 90, fontSize: `${textScale * 100}%` }}>
+    <div style={{ fontFamily: FONT_FAMILY, maxWidth: `min(430px, ${100 / textScale}vw)`, margin: "0 auto", minHeight: "100vh", background: T.pageBg, paddingBottom: 90, zoom: textScale }}>
       <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet" />
       <style>{THEME_CSS + `@keyframes spSlideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}@keyframes spSpin{to{transform:rotate(360deg)}}`}</style>
 
@@ -3136,7 +3135,6 @@ export default function FinanceTracker() {
             const cbc = catBudget > 0 ? budgetColor(catPct) : null;
             const isActive = analyticsCat === cat.value;
             const canDrill = amt > 0;
-            const ts = textScale; // honor the Settings text-size scale
             const pctTotal = monthlyTotal > 0 ? (amt / monthlyTotal * 100) : 0;
             const pctBudget = catBudget > 0 ? (amt / catBudget * 100) : null;
             const drillTxns = isActive ? monthTxns.filter((tx) => tx.type !== "income" && tx.category === cat.value).sort((a, b) => new Date(b.date) - new Date(a.date)) : [];
@@ -3147,12 +3145,12 @@ export default function FinanceTracker() {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <div style={{ width: 38, height: 38, borderRadius: 13, background: isActive ? "var(--surface)" : cat.pastelBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{cat.icon}</div>
-                    <span style={{ fontSize: 14 * ts, fontWeight: 600, color: isActive ? cat.pastelText : "var(--text)", fontFamily: FONT_FAMILY }}>{cat.label}</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: isActive ? cat.pastelText : "var(--text)", fontFamily: FONT_FAMILY }}>{cat.label}</span>
                     {canDrill && <ChevronRight size={13} color={isActive ? cat.pastelText : "#CBD5E1"} style={{ transform: isActive ? "rotate(90deg)" : "none", transition: "transform 0.18s" }} />}
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <span style={{ fontFamily: MONO_FAMILY, fontSize: 15 * ts, fontWeight: 600, color: cbc ? cbc.text : (isActive ? cat.pastelText : "var(--text)") }}>{fmt(amt)}</span>
-                    {catBudget > 0 && <span style={{ ...T.muted, fontSize: 11 * ts, display: "block", fontFamily: MONO_FAMILY }}>/ {fmt(catBudget)}</span>}
+                    <span style={{ fontFamily: MONO_FAMILY, fontSize: 15, fontWeight: 600, color: cbc ? cbc.text : (isActive ? cat.pastelText : "var(--text)") }}>{fmt(amt)}</span>
+                    {catBudget > 0 && <span style={{ ...T.muted, fontSize: 11, display: "block", fontFamily: MONO_FAMILY }}>/ {fmt(catBudget)}</span>}
                   </div>
                 </div>
                 <div style={{ height: 6, background: cbc ? cbc.track : (isActive ? "var(--surface)" : "var(--fill)"), borderRadius: 99, overflow: "hidden" }}>
@@ -3161,7 +3159,7 @@ export default function FinanceTracker() {
                 {catBudget > 0 && catPct >= 0.75 && (
                   <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 8 }}>
                     <AlertTriangle size={12} color={cbc.text} />
-                    <span style={{ fontSize: 11 * ts, fontWeight: 600, color: cbc.text, fontFamily: FONT_FAMILY }}>{catPct >= 0.95 ? t.overLimit : t.nearLimit}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: cbc.text, fontFamily: FONT_FAMILY }}>{catPct >= 0.95 ? t.overLimit : t.nearLimit}</span>
                   </div>
                 )}
               </button>
@@ -3177,30 +3175,30 @@ export default function FinanceTracker() {
                       ...(pctBudget !== null ? [{ l: "% of budget", v: `${pctBudget.toFixed(0)}%` }] : []),
                     ].map((s) => (
                       <div key={s.l} style={{ background: cat.pastelBg, borderRadius: 14, padding: "10px 12px" }}>
-                        <p style={{ margin: "0 0 3px", fontSize: 9 * ts, fontWeight: 600, color: cat.pastelText, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT_FAMILY }}>{s.l}</p>
-                        <p style={{ margin: 0, fontSize: 15 * ts, fontWeight: 700, color: cat.pastelText, fontFamily: MONO_FAMILY }}>{s.v}</p>
+                        <p style={{ margin: "0 0 3px", fontSize: 9, fontWeight: 600, color: cat.pastelText, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT_FAMILY }}>{s.l}</p>
+                        <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: cat.pastelText, fontFamily: MONO_FAMILY }}>{s.v}</p>
                       </div>
                     ))}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                    <p style={{ ...T.label, margin: 0, fontSize: 11 * ts, fontFamily: FONT_FAMILY }}>{drillTxns.length} {t.transactions}</p>
-                    <button onClick={() => setAnalyticsCat(null)} style={{ display: "flex", alignItems: "center", gap: 5, background: "var(--fill)", border: "none", cursor: "pointer", padding: "5px 12px", borderRadius: 99, fontFamily: FONT_FAMILY, fontSize: 11 * ts, fontWeight: 600, color: "var(--text-2)" }}><X size={11} /> {t.showAll}</button>
+                    <p style={{ ...T.label, margin: 0, fontSize: 11, fontFamily: FONT_FAMILY }}>{drillTxns.length} {t.transactions}</p>
+                    <button onClick={() => setAnalyticsCat(null)} style={{ display: "flex", alignItems: "center", gap: 5, background: "var(--fill)", border: "none", cursor: "pointer", padding: "5px 12px", borderRadius: 99, fontFamily: FONT_FAMILY, fontSize: 11, fontWeight: 600, color: "var(--text-2)" }}><X size={11} /> {t.showAll}</button>
                   </div>
                   {drillTxns.map((tx) => {
                     const tags = extractTags(tx.note);
                     return (
                       <div key={tx.id} style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 0", borderTop: "1px solid var(--fill)" }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ fontSize: 13 * ts, fontWeight: 600, color: "var(--text)", fontFamily: FONT_FAMILY }}>{tx.note || cat.label}</span>
-                          <p style={{ ...T.muted, margin: "2px 0 0", fontSize: 11 * ts, fontFamily: FONT_FAMILY }}>{fmtDate(tx.date)}{tags.length > 0 ? " · " + tags.join(" ") : ""}</p>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", fontFamily: FONT_FAMILY }}>{tx.note || cat.label}</span>
+                          <p style={{ ...T.muted, margin: "2px 0 0", fontSize: 11, fontFamily: FONT_FAMILY }}>{fmtDate(tx.date)}{tags.length > 0 ? " · " + tags.join(" ") : ""}</p>
                         </div>
-                        <span style={{ fontFamily: MONO_FAMILY, fontSize: 14 * ts, fontWeight: 600, color: "#EF4444", flexShrink: 0 }}>−{fmt(tx.amount)}</span>
+                        <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: "#EF4444", flexShrink: 0 }}>−{fmt(tx.amount)}</span>
                         <button onClick={() => openEditForm(tx)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#CBD5E1", flexShrink: 0 }}><Pencil size={13} /></button>
                         <button onClick={() => handleDelete(tx.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#CBD5E1", flexShrink: 0 }}><Trash2 size={13} /></button>
                       </div>
                     );
                   })}
-                  <button onClick={() => openAddForm(cat.value, "expense")} style={{ width: "100%", border: "none", borderTop: "1px dashed var(--border)", marginTop: 4, background: "transparent", cursor: "pointer", fontFamily: FONT_FAMILY, padding: "12px 0 2px", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, color: cat.pastelText, fontSize: 13 * ts, fontWeight: 700 }}>
+                  <button onClick={() => openAddForm(cat.value, "expense")} style={{ width: "100%", border: "none", borderTop: "1px dashed var(--border)", marginTop: 4, background: "transparent", cursor: "pointer", fontFamily: FONT_FAMILY, padding: "12px 0 2px", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, color: cat.pastelText, fontSize: 13, fontWeight: 700 }}>
                     <Plus size={14} /> Add to {cat.label}
                   </button>
                 </div>
