@@ -2017,7 +2017,45 @@ async function getOcrWorker(onProgress) {
   _ocrWorker = await window.Tesseract.createWorker(["eng", "tha"], 1, {
     logger: (m) => { if (m.status === "recognizing text") onProgress(Math.round(m.progress * 100)); },
   });
+  // Receipts are one uniform column of text; the default fully-automatic layout analysis
+  // (PSM 3) can misread that as multiple columns/blocks on a noisy phone photo. PSM 6 tells
+  // Tesseract to treat the whole image as a single block, which reads receipts more reliably.
+  await _ocrWorker.setParameters({ tessedit_pageseg_mode: "6" });
   return _ocrWorker;
+}
+
+// Phone photos of receipts are the main source of OCR misreads: uneven lighting, glare, low
+// contrast between faint thermal-printer ink and paper. Upscaling small photos (more pixels
+// per character) and pushing a grayscale contrast stretch toward black/white before handing
+// the image to Tesseract measurably improves character recognition versus feeding it the raw
+// photo. Falls back to the original file if canvas processing fails for any reason.
+async function preprocessReceiptImage(file) {
+  const img = await new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = URL.createObjectURL(file);
+  });
+  try {
+    const scale = img.naturalWidth < 1200 ? 1200 / img.naturalWidth : 1;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const d = imageData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      const boosted = Math.min(255, Math.max(0, (gray - 128) * 1.6 + 128));
+      d[i] = d[i + 1] = d[i + 2] = boosted;
+    }
+    ctx.putImageData(imageData, 0, 0);
+    return canvas;
+  } finally {
+    URL.revokeObjectURL(img.src);
+  }
 }
 // Extract a total: keyword priority (Total/Amount/รวม/จำนวนเงิน…), else the best price-shaped number.
 //
@@ -2031,9 +2069,16 @@ function extractSlipAmount(text) {
   const KEYWORDS = ["grand total", "total", "amount due", "amount", "balance",
                     "ยอดรวมสุทธิ", "ยอดรวม", "ยอดชำระ", "รวมทั้งสิ้น", "จำนวนเงิน", "รวม"];
   for (const kw of KEYWORDS) {
-    const re = new RegExp(kw.replace(/\s+/g, "\\s*") + "[\\s:.\\-฿]*" + NUM, "i");
-    const m = text.match(re);
-    if (m && m[1]) { const v = parseFloat(m[1].replace(/,/g, "")); if (v > 0) return v; }
+    // \b before the keyword stops "total" from matching inside "Subtotal" (no boundary
+    // between "sub" and "total" -- without it, a receipt listing both lines would silently
+    // grab the smaller subtotal). Global + last-match: receipts list subtotal/tax before the
+    // final total, so the last matching line for a given keyword is the authoritative one.
+    const re = new RegExp("\\b" + kw.replace(/\s+/g, "\\s*") + "\\b[\\s:.\\-฿]*" + NUM, "gi");
+    const matches = [...text.matchAll(re)];
+    if (matches.length) {
+      const v = parseFloat(matches[matches.length - 1][1].replace(/,/g, ""));
+      if (v > 0) return v;
+    }
   }
   // No keyword matched (OCR garbled the label, or an unlisted phrasing was used). Rather than
   // picking "the biggest number anywhere in the text" -- which lets invoice numbers, tax IDs,
@@ -2370,7 +2415,9 @@ export default function FinanceTracker() {
     for (let i = 0; i < files.length; i++) {
       setScanProgress({ i: i + 1, n: files.length });
       try {
-        const { data } = await worker.recognize(files[i]);
+        let ocrInput = files[i];
+        try { ocrInput = await preprocessReceiptImage(files[i]); } catch (prepErr) { console.error("Preprocessing failed, using raw photo:", prepErr); }
+        const { data } = await worker.recognize(ocrInput);
         const amount = extractSlipAmount(data.text);
         created.push({
           id: uid(), type: "expense", amount: amount != null ? Math.round(amount * 100) / 100 : 0,
@@ -2954,6 +3001,9 @@ export default function FinanceTracker() {
                       style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 22, fontWeight: 700, color: "var(--text)", fontFamily: MONO_FAMILY, width: "100%" }} />
                     <button onClick={() => handleDelete(tx.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#CBD5E1", padding: 4 }}><Trash2 size={15} /></button>
                   </div>
+                  <input type="text" value={tx.note || ""} placeholder={tr("Add a note… (optional)", "เพิ่มบันทึก… (ไม่บังคับ)")}
+                    onChange={(e) => { const v = e.target.value; setTransactions((p) => p.map((x) => x.id === tx.id ? { ...x, note: v, tags: extractTags(v) } : x)); }}
+                    style={{ width: "100%", border: "1px solid var(--border)", outline: "none", background: "var(--bg)", borderRadius: 10, padding: "7px 10px", fontSize: 13, color: "var(--text)", fontFamily: FONT_FAMILY, marginBottom: 8, boxSizing: "border-box" }} />
                   <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
                     {CATEGORIES.map((c) => (
                       <button key={c.value} onClick={() => { if ((tx.amount || 0) > 0) categorizePending(tx.id, c.value); else showToast(tr("Enter an amount first", "กรอกจำนวนเงินก่อน")); }}
