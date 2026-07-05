@@ -1998,10 +1998,15 @@ async function getOcrWorker(onProgress) {
   });
   return _ocrWorker;
 }
-// Extract a total: keyword priority (Total/Amount/รวม/จำนวนเงิน…), else largest currency-shaped number.
+// Extract a total: keyword priority (Total/Amount/รวม/จำนวนเงิน…), else the best price-shaped number.
+//
+// NUM's first branch requires >=1 comma-group so it only fires for genuinely comma-formatted
+// numbers (e.g. "12,345.67"); previously it used `*` (zero-or-more), which let it match just the
+// leading 1-3 digits of ANY plain digit run before the second branch ever got a chance, silently
+// truncating any total >= 1000 written without a thousands separator (e.g. "1500.00" -> "150").
 function extractSlipAmount(text) {
   if (!text) return null;
-  const NUM = "(\\d{1,3}(?:,\\d{3})*(?:\\.\\d{1,2})?|\\d+(?:\\.\\d{1,2})?)";
+  const NUM = "(\\d{1,3}(?:,\\d{3})+(?:\\.\\d{1,2})?|\\d+(?:\\.\\d{1,2})?)";
   const KEYWORDS = ["grand total", "total", "amount due", "amount", "balance",
                     "ยอดรวมสุทธิ", "ยอดรวม", "ยอดชำระ", "รวมทั้งสิ้น", "จำนวนเงิน", "รวม"];
   for (const kw of KEYWORDS) {
@@ -2009,10 +2014,21 @@ function extractSlipAmount(text) {
     const m = text.match(re);
     if (m && m[1]) { const v = parseFloat(m[1].replace(/,/g, "")); if (v > 0) return v; }
   }
-  const all = [...text.matchAll(new RegExp(NUM, "g"))]
-    .map((m) => parseFloat(m[0].replace(/,/g, "")))
-    .filter((v) => !isNaN(v) && v >= 1 && v < 10_000_000);
-  return all.length ? Math.max(...all) : null;
+  // No keyword matched (OCR garbled the label, or an unlisted phrasing was used). Rather than
+  // picking "the biggest number anywhere in the text" -- which lets invoice numbers, tax IDs,
+  // phone numbers and dates outrank the real total -- prefer numbers that look like a price
+  // (carry a decimal amount), and among those the last one, since totals are conventionally
+  // printed at the bottom of a receipt.
+  const candidates = [...text.matchAll(new RegExp(NUM, "g"))]
+    .map((m) => ({ value: parseFloat(m[0].replace(/,/g, "")), hasDecimal: /\.\d{1,2}$/.test(m[0]) }))
+    .filter((c) => !isNaN(c.value) && c.value >= 1 && c.value < 10_000_000)
+    // Exclude bare integers that look like a calendar year (e.g. a printed date) unless they
+    // carry a decimal amount -- a real total in that range almost always has one.
+    .filter((c) => c.hasDecimal || !(Number.isInteger(c.value) && c.value >= 1900 && c.value <= 2099));
+  if (!candidates.length) return null;
+  const withDecimal = candidates.filter((c) => c.hasDecimal);
+  const pool = withDecimal.length ? withDecimal : candidates;
+  return pool[pool.length - 1].value;
 }
 
 export default function FinanceTracker() {
@@ -2319,11 +2335,21 @@ export default function FinanceTracker() {
     const files = Array.from(fileList || []).filter((f) => f && f.type.startsWith("image/"));
     if (!files.length) return;
     if (!window.Tesseract) { showToast(tr("OCR not loaded — check connection", "โหลด OCR ไม่สำเร็จ — ตรวจสอบเน็ต")); return; }
-    const created = [];
+    let worker;
     try {
-      const worker = await getOcrWorker(() => {});
-      for (let i = 0; i < files.length; i++) {
-        setScanProgress({ i: i + 1, n: files.length });
+      worker = await getOcrWorker(() => {});
+    } catch (err) {
+      console.error("OCR worker failed to start:", err);
+      showToast(tr("OCR failed to start — try again", "เริ่ม OCR ไม่สำเร็จ — ลองใหม่"));
+      return;
+    }
+    // Each slip is OCR'd independently so one corrupt/unreadable image can't discard the
+    // slips that already scanned successfully earlier in the same batch.
+    const created = [];
+    let failed = 0;
+    for (let i = 0; i < files.length; i++) {
+      setScanProgress({ i: i + 1, n: files.length });
+      try {
         const { data } = await worker.recognize(files[i]);
         const amount = extractSlipAmount(data.text);
         created.push({
@@ -2331,13 +2357,18 @@ export default function FinanceTracker() {
           category: "Uncategorized", pending: true, note: "", date: todayStr(),
           tags: [], split: false, originalAmount: amount != null ? Math.round(amount * 100) / 100 : 0, reimbursed: 0,
         });
+      } catch (err) {
+        console.error("OCR failed for a slip:", err);
+        failed++;
       }
-      setTransactions((p) => [...created, ...p]);
-      setScanProgress(null);
+    }
+    setScanProgress(null);
+    if (created.length) setTransactions((p) => [...created, ...p]);
+    if (created.length && !failed) {
       showToast(tr(`${created.length} slip${created.length !== 1 ? "s" : ""} added — categorize them`, `เพิ่ม ${created.length} สลิป — รอจัดหมวดหมู่`));
-    } catch (err) {
-      console.error("OCR failed:", err);
-      setScanProgress(null);
+    } else if (created.length && failed) {
+      showToast(tr(`${created.length} added, ${failed} failed — try those again`, `เพิ่ม ${created.length} รายการ, ล้มเหลว ${failed} รายการ — ลองใหม่`));
+    } else {
       showToast(tr("Upload failed — try again", "อัปโหลดไม่สำเร็จ — ลองใหม่"));
     }
   };
