@@ -235,8 +235,8 @@ function SpEmpty({ icon, title, sub }) {
 function SpValidationBar({ val, target, suffix = "", L }) {
   const ok = Math.abs(val - target) < 1;
   return (
-    <div style={{ marginTop: 10, padding: "8px 12px", background: ok ? "#F0FDF4" : "#FFF1F2", borderRadius: 10, border: `1px solid ${ok ? "#BBF7D0" : "#FECDD3"}` }}>
-      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: ok ? "#15803D" : "#BE123C", fontFamily: SP_FONT }}>{ok ? L.balanced : L.remaining(`${(target - val).toFixed(0)}${suffix}`)}</p>
+    <div style={{ marginTop: 10, padding: "8px 12px", background: ok ? "var(--positive-tint)" : "var(--negative-tint)", borderRadius: 10, border: `1px solid ${ok ? "var(--positive-tint-border)" : "var(--negative-tint-border)"}` }}>
+      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: ok ? "var(--positive)" : "var(--negative-strong)", fontFamily: SP_FONT }}>{ok ? L.balanced : L.remaining(`${(target - val).toFixed(0)}${suffix}`)}</p>
     </div>
   );
 }
@@ -303,7 +303,7 @@ function SpAddExpenseModal({ data, me, activeGid, editExpense, onSave, onClose, 
 
   return (
     <SpSheet onClose={onClose} title={ed ? L.editExpense : L.addExpense}>
-      {error && <div style={{ background: "#FFF1F2", border: "1px solid #FECDD3", borderRadius: 12, padding: "10px 14px", marginBottom: 14, fontSize: 13, fontWeight: 600, color: "#BE123C", fontFamily: SP_FONT }}>{error}</div>}
+      {error && <div style={{ background: "var(--negative-tint)", border: "1px solid var(--negative-tint-border)", borderRadius: 12, padding: "10px 14px", marginBottom: 14, fontSize: 13, fontWeight: 600, color: "var(--negative-strong)", fontFamily: SP_FONT }}>{error}</div>}
 
       {/* NLP */}
       <div style={{ background: "var(--bg)", borderRadius: 16, padding: "12px 14px", marginBottom: 14, border: "1px solid var(--border)" }}>
@@ -493,7 +493,7 @@ function SpSettleModal({ data, me, gid, allBalances, onSave, onClose, L }) {
       {myDebts.length === 0 ? (
         <div style={{ textAlign: "center", padding: "32px" }}>
           <div style={{ fontSize: 48, marginBottom: 10 }}>🎉</div>
-          <p style={{ fontSize: 16, fontWeight: 700, color: "#15803D", margin: "0 0 4px", fontFamily: SP_FONT }}>{L.allClear}</p>
+          <p style={{ fontSize: 16, fontWeight: 700, color: "var(--positive)", margin: "0 0 4px", fontFamily: SP_FONT }}>{L.allClear}</p>
           <p style={{ fontSize: 12, color: "var(--text-3)", margin: 0, fontFamily: SP_FONT }}>{L.nothingSettle}</p>
         </div>
       ) : (
@@ -505,7 +505,7 @@ function SpSettleModal({ data, me, gid, allBalances, onSave, onClose, L }) {
                 <SpAvatar m={toM} size={40} />
                 <div style={{ flex: 1 }}>
                   <p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 700, color: "var(--text)", fontFamily: SP_FONT }}>{L.pay(toM?.name)}</p>
-                  <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#EF4444", fontFamily: SP_MONO }}>{_spFmt(d.amount)}</p>
+                  <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--negative)", fontFamily: SP_MONO }}>{_spFmt(d.amount)}</p>
                 </div>
                 {selected?.to === d.to && <span style={{ fontSize: 14, color: "var(--primary)" }}>✓</span>}
               </div>
@@ -550,7 +550,7 @@ function SpExpenseRow({ e, data, me, onEdit, onDelete, L, lang }) {
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           <p style={{ margin: "0 0 2px", fontSize: 15, fontWeight: 700, color: "var(--text)", fontFamily: SP_MONO }}>{_spFmt(e.amount)}</p>
-          <p style={{ margin: 0, fontSize: 10, color: iMePaid ? "#15803D" : myShare > 0 ? "#EF4444" : "var(--text-3)", fontWeight: 700, fontFamily: SP_FONT }}>{iMePaid ? L.youPaid : myShare > 0 ? L.yourShareN(_spFmt(myShare)) : L.notIncluded}</p>
+          <p style={{ margin: 0, fontSize: 10, color: iMePaid ? "var(--positive)" : myShare > 0 ? "var(--negative)" : "var(--text-3)", fontWeight: 700, fontFamily: SP_FONT }}>{iMePaid ? L.youPaid : myShare > 0 ? L.yourShareN(_spFmt(myShare)) : L.notIncluded}</p>
         </div>
       </div>
       {expanded && (
@@ -567,7 +567,7 @@ function SpExpenseRow({ e, data, me, onEdit, onDelete, L, lang }) {
           })}
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
             <button onClick={() => onEdit(e)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 9, border: "none", background: "var(--primary-tint)", color: "var(--primary)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: SP_FONT }}>✏️ {L.edit}</button>
-            <button onClick={() => onDelete(e.id)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 9, border: "none", background: "#FFF1F2", color: "#EF4444", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: SP_FONT }}>🗑 {L.del}</button>
+            <button onClick={() => onDelete(e.id)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 9, border: "none", background: "var(--negative-tint)", color: "var(--negative)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: SP_FONT }}>🗑 {L.del}</button>
           </div>
         </div>
       )}
@@ -614,8 +614,8 @@ function SpGroupDetail({ data, me, gid, allBalances, onBack, onAddExpense, onEdi
           <button onClick={onBack} style={{ width: 38, height: 38, borderRadius: 13, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", border: "1px solid var(--border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span style={{ fontSize: 16, color: "var(--text)" }}>←</span>
           </button>
-          <button onClick={() => { if (window.confirm(L.confirmDelGroup(g.name.replace(/^[^\w\s]+\s*/, "")))) onDeleteGroup(gid); }} style={{ width: 38, height: 38, borderRadius: 13, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", border: "1px solid #FECDD3", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 15, color: "#EF4444" }}>🗑</span>
+          <button onClick={() => { if (window.confirm(L.confirmDelGroup(g.name.replace(/^[^\w\s]+\s*/, "")))) onDeleteGroup(gid); }} style={{ width: 38, height: 38, borderRadius: 13, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", border: "1px solid var(--negative-tint-border)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 15, color: "var(--negative)" }}>🗑</span>
           </button>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
@@ -630,7 +630,7 @@ function SpGroupDetail({ data, me, gid, allBalances, onBack, onAddExpense, onEdi
           {[
             { l: L.stTotal,     val: _spFmt(total),   c: "var(--text)",  bg: `${g.color}18` },
             { l: L.stYouPaid,   val: _spFmt(mePaid),  c: indigo,     bg: "var(--primary-tint)" },
-            { l: L.stYourShare, val: _spFmt(meShare),  c: meShare > mePaid ? "#EF4444" : "#15803D", bg: meShare > mePaid ? "#FFF1F2" : "#F0FDF4" },
+            { l: L.stYourShare, val: _spFmt(meShare),  c: meShare > mePaid ? "var(--negative)" : "var(--positive)", bg: meShare > mePaid ? "var(--negative-tint)" : "var(--positive-tint)" },
           ].map(s => (
             <div key={s.l} style={{ background: s.bg, borderRadius: 14, padding: "11px 12px", border: "1px solid var(--border)" }}>
               <p style={{ margin: "0 0 4px", fontSize: 8, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: SP_FONT }}>{s.l}</p>
@@ -669,7 +669,7 @@ function SpGroupDetail({ data, me, gid, allBalances, onBack, onAddExpense, onEdi
             {debts.length === 0 ? (
               <div style={{ textAlign: "center", padding: "40px 20px", background: "var(--surface)", borderRadius: 22, border: "1px solid var(--border)" }}>
                 <div style={{ fontSize: 48, marginBottom: 10 }}>🎉</div>
-                <p style={{ fontSize: 16, fontWeight: 700, color: "#15803D", margin: "0 0 4px", fontFamily: SP_FONT }}>{L.allSettled}</p>
+                <p style={{ fontSize: 16, fontWeight: 700, color: "var(--positive)", margin: "0 0 4px", fontFamily: SP_FONT }}>{L.allSettled}</p>
                 <p style={{ fontSize: 12, color: "var(--text-3)", margin: 0, fontFamily: SP_FONT }}>{L.everyoneEven}</p>
               </div>
             ) : (
@@ -679,11 +679,11 @@ function SpGroupDetail({ data, me, gid, allBalances, onBack, onAddExpense, onEdi
                   const to   = data.members.find(m => m.id === d.to);
                   const isMe = d.from === me?.id;
                   return (
-                    <div key={i} style={{ background: isMe ? "#FFF1F2" : "var(--surface)", borderRadius: 18, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12, border: `1px solid ${isMe ? "#FECDD3" : "var(--border)"}` }}>
+                    <div key={i} style={{ background: isMe ? "var(--negative-tint)" : "var(--surface)", borderRadius: 18, padding: "14px 16px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12, border: `1px solid ${isMe ? "var(--negative-tint-border)" : "var(--border)"}` }}>
                       <SpAvatar m={from} size={38} />
                       <div style={{ flex: 1 }}>
                         <p style={{ margin: "0 0 2px", fontSize: 13, fontWeight: 700, color: "var(--text)", fontFamily: SP_FONT }}>{from?.name} <span style={{ color: "var(--text-3)", fontWeight: 500 }}>→</span> {to?.name}</p>
-                        <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: isMe ? "#EF4444" : "var(--text)", fontFamily: SP_MONO }}>{_spFmt(d.amount)}</p>
+                        <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: isMe ? "var(--negative)" : "var(--text)", fontFamily: SP_MONO }}>{_spFmt(d.amount)}</p>
                       </div>
                       {isMe && <button onClick={() => onSettle(gid)} style={{ padding: "9px 16px", borderRadius: 99, border: "none", background: "#10B981", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: SP_FONT, boxShadow: "0 4px 14px rgba(16,185,129,0.3)" }}>{L.settle}</button>}
                     </div>
@@ -698,7 +698,7 @@ function SpGroupDetail({ data, me, gid, allBalances, onBack, onAddExpense, onEdi
                     <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "var(--surface)", borderRadius: 14, marginBottom: 6, border: "1px solid var(--border)" }}>
                       <SpAvatar m={m} size={34} />
                       <p style={{ margin: 0, flex: 1, fontSize: 13, fontWeight: 700, color: "var(--text)", fontFamily: SP_FONT }}>{m.name}</p>
-                      <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: net > 0 ? "#15803D" : net < 0 ? "#EF4444" : "var(--text-3)", fontFamily: SP_MONO }}>{net > 0 ? "+" : ""}{_spFmt(net)}</p>
+                      <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: net > 0 ? "var(--positive)" : net < 0 ? "var(--negative)" : "var(--text-3)", fontFamily: SP_MONO }}>{net > 0 ? "+" : ""}{_spFmt(net)}</p>
                     </div>
                   );
                 })}
@@ -897,7 +897,7 @@ function GroupsTab({ profile, onLinkUpsert, onLinkDelete, language = "EN" }) {
           {/* Net balance hero */}
           <div style={{ padding: "20px 0 16px" }}>
             <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: SP_FONT }}>{L.netBalance}</p>
-            <p style={{ margin: 0, fontSize: 36, fontWeight: 700, color: myNetBalance >= 0 ? "#15803D" : "#EF4444", fontFamily: SP_MONO, letterSpacing: "-1.5px" }}>{myNetBalance >= 0 ? "+" : "-"}{_spFmt(Math.abs(myNetBalance))}</p>
+            <p style={{ margin: 0, fontSize: 36, fontWeight: 700, color: myNetBalance >= 0 ? "var(--positive)" : "var(--negative)", fontFamily: SP_MONO, letterSpacing: "-1.5px" }}>{myNetBalance >= 0 ? "+" : "-"}{_spFmt(Math.abs(myNetBalance))}</p>
             <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-3)", fontFamily: SP_FONT }}>{myNetBalance >= 0 ? L.othersOwe : L.youOweOthers} {L.acrossGroups(spData.groups.length)}</p>
           </div>
 
@@ -929,11 +929,11 @@ function GroupsTab({ profile, onLinkUpsert, onLinkDelete, language = "EN" }) {
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
                   {settled ? (
-                    <span style={{ fontSize: 10, fontWeight: 700, background: "#F0FDF4", color: "#15803D", padding: "5px 10px", borderRadius: 99, border: "1px solid rgba(0,200,150,0.2)" }}>{L.settled}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, background: "var(--positive-tint)", color: "var(--positive)", padding: "5px 10px", borderRadius: 99, border: "1px solid rgba(0,200,150,0.2)" }}>{L.settled}</span>
                   ) : net !== 0 ? (
                     <>
                       <p style={{ margin: "0 0 2px", fontSize: 9, color: "var(--text-3)", fontWeight: 600, fontFamily: SP_FONT }}>{net > 0 ? L.youreOwed : L.youOwe}</p>
-                      <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: net > 0 ? "#15803D" : "#EF4444", fontFamily: SP_MONO }}>{_spFmt(Math.abs(net))}</p>
+                      <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: net > 0 ? "var(--positive)" : "var(--negative)", fontFamily: SP_MONO }}>{_spFmt(Math.abs(net))}</p>
                     </>
                   ) : (
                     <span style={{ fontSize: 10, fontWeight: 700, background: indigoLight, color: indigo, padding: "5px 10px", borderRadius: 99 }}>{L.even}</span>
@@ -961,13 +961,13 @@ function GroupsTab({ profile, onLinkUpsert, onLinkDelete, language = "EN" }) {
         return (
           <div style={{ padding: "0 16px" }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, margin: "16px 0" }}>
-              <div style={{ background: "#F0FDF4", borderRadius: 18, padding: "14px 16px", border: "1px solid rgba(0,200,150,0.2)" }}>
-                <p style={{ margin: "0 0 4px", fontSize: 9, fontWeight: 700, color: "#15803D", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: SP_FONT }}>{L.owedToYou}</p>
-                <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#15803D", fontFamily: SP_MONO }}>+{_spFmt(totalOwed)}</p>
+              <div style={{ background: "var(--positive-tint)", borderRadius: 18, padding: "14px 16px", border: "1px solid rgba(0,200,150,0.2)" }}>
+                <p style={{ margin: "0 0 4px", fontSize: 9, fontWeight: 700, color: "var(--positive)", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: SP_FONT }}>{L.owedToYou}</p>
+                <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "var(--positive)", fontFamily: SP_MONO }}>+{_spFmt(totalOwed)}</p>
               </div>
-              <div style={{ background: "#FFF1F2", borderRadius: 18, padding: "14px 16px", border: "1px solid rgba(255,91,91,0.2)" }}>
-                <p style={{ margin: "0 0 4px", fontSize: 9, fontWeight: 700, color: "#EF4444", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: SP_FONT }}>{L.youOwe}</p>
-                <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#EF4444", fontFamily: SP_MONO }}>{_spFmt(totalOwe)}</p>
+              <div style={{ background: "var(--negative-tint)", borderRadius: 18, padding: "14px 16px", border: "1px solid rgba(255,91,91,0.2)" }}>
+                <p style={{ margin: "0 0 4px", fontSize: 9, fontWeight: 700, color: "var(--negative)", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: SP_FONT }}>{L.youOwe}</p>
+                <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "var(--negative)", fontFamily: SP_MONO }}>{_spFmt(totalOwe)}</p>
               </div>
             </div>
             {friends.length === 0 ? <SpEmpty icon="👤" title={L.noFriends} sub={L.noFriendsSub} /> : (
@@ -985,7 +985,7 @@ function GroupsTab({ profile, onLinkUpsert, onLinkDelete, language = "EN" }) {
                       {bal === 0 ? <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", fontFamily: SP_FONT }}>{L.settled}</span> : (
                         <>
                           <p style={{ margin: "0 0 1px", fontSize: 9, color: "var(--text-3)", fontWeight: 600, fontFamily: SP_FONT }}>{bal > 0 ? L.owesYou : L.youOwe}</p>
-                          <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: bal > 0 ? "#15803D" : "#EF4444", fontFamily: SP_MONO }}>{_spFmt(Math.abs(bal))}</p>
+                          <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: bal > 0 ? "var(--positive)" : "var(--negative)", fontFamily: SP_MONO }}>{_spFmt(Math.abs(bal))}</p>
                         </>
                       )}
                     </div>
@@ -1256,7 +1256,7 @@ const CATEGORIES_BASE = [
 ];
 
 const INCOME_CATEGORIES = [
-  { value: "Salary",     label: "Salary",       labelShort: "Salary",     icon: "💼", pastelBg: "#F0FDF4", pastelText: "#15803D", bar: "#22C55E" },
+  { value: "Salary",     label: "Salary",       labelShort: "Salary",     icon: "💼", pastelBg: "var(--positive-tint)", pastelText: "var(--positive)", bar: "#22C55E" },
   { value: "Gift",       label: "Gift",          labelShort: "Gift",       icon: "🎁", pastelBg: "#FFF0F6", pastelText: "#BE185D", bar: "#EC4899" },
   { value: "Investment", label: "Investment",    labelShort: "Invest",     icon: "📈", pastelBg: "#EFF6FF", pastelText: "#1D4ED8", bar: "#3B82F6" },
   { value: "Freelance",  label: "Freelance",     labelShort: "Freelance",  icon: "💻", pastelBg: "#F5F3FF", pastelText: "#6D28D9", bar: "#8B5CF6" },
@@ -1314,9 +1314,9 @@ const monthKey     = (y, m) => `${y}-${String(m + 1).padStart(2, "0")}`;
 const getMonthName = (idx, lang) => lang === "TH" ? MONTH_NAMES_TH[idx] : MONTH_NAMES[idx];
 
 const budgetColor = (pct) => {
-  if (pct >= 0.95) return { bar: "#EF4444", text: "#DC2626", track: "#FEE2E2" };
-  if (pct >= 0.75) return { bar: "#F59E0B", text: "#D97706", track: "#FEF3C7" };
-  return { bar: "#10B981", text: "#059669", track: "#D1FAE5" };
+  if (pct >= 0.95) return { bar: "var(--budget-danger-bar)", text: "var(--budget-danger-text)", track: "var(--budget-danger-track)" };
+  if (pct >= 0.75) return { bar: "var(--budget-warn-bar)", text: "var(--budget-warn-text)", track: "var(--budget-warn-track)" };
+  return { bar: "var(--budget-safe-bar)", text: "var(--budget-safe-text)", track: "var(--budget-safe-track)" };
 };
 
 const lsGet = (k, def) => { try { if (typeof window === "undefined") return def; const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } };
@@ -1352,6 +1352,15 @@ const THEME_CSS = `
   --primary:#5a6b7d; --primary-tint:#eef2f6; --on-primary:#ffffff;
   --inverse:#1e293b; --on-inverse:#f8fafc;
   --card-shadow:0 4px 24px rgba(30,41,59,0.05),0 1px 2px rgba(30,41,59,0.04);
+  /* Semantic status colors -- kept as variables (not literal hex) so income/expense/
+     warning accents stay legible instead of sitting as leftover light-mode pastels
+     on a dark surface. */
+  --positive:#15803d; --positive-tint:#f0fdf4; --positive-tint-border:#bbf7d0;
+  --negative:#ef4444; --negative-strong:#be123c; --negative-tint:#fff1f2; --negative-tint-border:#fecdd3;
+  --warning:#d97706; --warning-text:#92400e; --warning-tint:#fffbeb; --warning-tint-border:#fde68a;
+  --budget-safe-bar:#10b981; --budget-safe-text:#059669; --budget-safe-track:#d1fae5;
+  --budget-warn-bar:#f59e0b; --budget-warn-text:#d97706; --budget-warn-track:#fef3c7;
+  --budget-danger-bar:#ef4444; --budget-danger-text:#dc2626; --budget-danger-track:#fee2e2;
 }
 [data-theme="dark"]{
   --bg:#0f172a; --surface:#1a2236; --surface-2:#222a3d; --fill:#222a3d;
@@ -1359,8 +1368,20 @@ const THEME_CSS = `
   --primary:#4a5c70; --primary-tint:#222a3d; --on-primary:#f8fafc;
   --inverse:#e2e8f0; --on-inverse:#1e293b;
   --card-shadow:0 8px 32px rgba(0,0,0,0.35);
+  --positive:#4ade80; --positive-tint:rgba(74,222,128,0.12); --positive-tint-border:rgba(74,222,128,0.28);
+  --negative:#f87171; --negative-strong:#fb7185; --negative-tint:rgba(248,113,113,0.14); --negative-tint-border:rgba(248,113,113,0.3);
+  --warning:#fbbf24; --warning-text:#fcd34d; --warning-tint:rgba(251,191,36,0.14); --warning-tint-border:rgba(251,191,36,0.3);
+  --budget-safe-bar:#4ade80; --budget-safe-text:#4ade80; --budget-safe-track:rgba(74,222,128,0.16);
+  --budget-warn-bar:#fbbf24; --budget-warn-text:#fbbf24; --budget-warn-track:rgba(251,191,36,0.16);
+  --budget-danger-bar:#f87171; --budget-danger-text:#f87171; --budget-danger-track:rgba(248,113,113,0.16);
 }
 body{background:var(--bg);}
+/* Smooth theme + state transitions app-wide. Elements that already declare their own
+   inline "transition" (progress bars, sliders, sheet slide-ups) keep that instead --
+   inline styles win over this rule, so nothing here fights an existing animation. */
+*, *::before, *::after {
+  transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
 `;
 
 // ─── Thai-aware body text style ───────────────────────────────────────────────
@@ -1491,7 +1512,7 @@ function YearlySummary({ transactions, language, yearlyYear, setYearlyYear, setS
                         <p style={{ ...T.muted, margin: "2px 0 0", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT_FAMILY }}>{cat.label} · {fmtDate(tx.date)}</p>
                         {tags.length > 0 && <div style={{ display: "flex", gap: 3, marginTop: 4, flexWrap: "wrap" }}>{tags.map((tag) => <span key={tag} style={{ fontSize: 10, fontWeight: 600, background: "var(--primary-tint)", color: "#6366F1", padding: "1px 7px", borderRadius: 99, fontFamily: FONT_FAMILY }}>{tag}</span>)}</div>}
                       </div>
-                      <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: "#EF4444", flexShrink: 0 }}>−{fmt(tx.amount)}</span>
+                      <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: "var(--negative)", flexShrink: 0 }}>−{fmt(tx.amount)}</span>
                     </div>
                   );
                 })}
@@ -1587,12 +1608,12 @@ function YearlySummary({ transactions, language, yearlyYear, setYearlyYear, setS
               const worst = activeMths.reduce((max, m) => m.total > max.total ? m : max, activeMths[0]);
               return (
                 <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                  <div onClick={() => setSelectedMonth(best.monthIdx)} style={{ flex: 1, padding: "10px 14px", background: "#F0FDF4", borderRadius: 12, cursor: "pointer" }}>
-                    <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 600, color: "#15803D", textTransform: "uppercase", fontFamily: FONT_FAMILY }}>{t.lightest}</p>
+                  <div onClick={() => setSelectedMonth(best.monthIdx)} style={{ flex: 1, padding: "10px 14px", background: "var(--positive-tint)", borderRadius: 12, cursor: "pointer" }}>
+                    <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 600, color: "var(--positive)", textTransform: "uppercase", fontFamily: FONT_FAMILY }}>{t.lightest}</p>
                     <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#166534", fontFamily: MONO_FAMILY }}>{best.name} · {fmt(best.total)}</p>
                   </div>
-                  <div onClick={() => setSelectedMonth(worst.monthIdx)} style={{ flex: 1, padding: "10px 14px", background: "#FFF1F2", borderRadius: 12, cursor: "pointer" }}>
-                    <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 600, color: "#BE123C", textTransform: "uppercase", fontFamily: FONT_FAMILY }}>{t.heaviest}</p>
+                  <div onClick={() => setSelectedMonth(worst.monthIdx)} style={{ flex: 1, padding: "10px 14px", background: "var(--negative-tint)", borderRadius: 12, cursor: "pointer" }}>
+                    <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 600, color: "var(--negative-strong)", textTransform: "uppercase", fontFamily: FONT_FAMILY }}>{t.heaviest}</p>
                     <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#9F1239", fontFamily: MONO_FAMILY }}>{worst.name} · {fmt(worst.total)}</p>
                   </div>
                 </div>
@@ -1780,7 +1801,7 @@ function TextSizerOverlay({ textScale, setTextScale, onClose, language = "EN" })
               <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text)", fontFamily: FONT_FAMILY, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tr("Your Expenses", "รายจ่ายของคุณ")}</p>
               <p style={{ margin: "1px 0 0", fontSize: 11, color: "var(--text-3)", fontFamily: FONT_FAMILY }}>{tr("Food & Drink · Jun 6", "อาหารและเครื่องดื่ม · 6 มิ.ย.")}</p>
             </div>
-            <span style={{ fontSize: 14, fontWeight: 700, color: "#EF4444", fontFamily: MONO_FAMILY, flexShrink: 0 }}>−฿320</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "var(--negative)", fontFamily: MONO_FAMILY, flexShrink: 0 }}>−฿320</span>
           </div>
         </div>
 
@@ -1867,7 +1888,7 @@ function CategoryForm({ type, initial, onSave, onClose, language = "EN" }) {
       <div style={{ position: "relative", background: "var(--surface)", borderRadius: "28px 28px 0 0", padding: "8px 22px 40px", width: "100%", maxWidth: 430, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 -12px 48px rgba(15,23,42,0.22)", animation: "spSlideUp 0.32s cubic-bezier(0.32,0.72,0,1)" }}>
         <div style={{ width: 40, height: 4, background: "var(--border)", borderRadius: 99, margin: "12px auto 18px" }} />
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-          <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--text)", fontFamily: FONT_FAMILY }}>{isEdit ? tr("Edit Category", "แก้ไขหมวดหมู่") : tr("New Category", "หมวดหมู่ใหม่")} <span style={{ fontSize: 12, fontWeight: 600, color: type === "income" ? "#15803D" : T.indigo }}>· {type === "income" ? tr("Income", "รายรับ") : tr("Expense", "รายจ่าย")}</span></p>
+          <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--text)", fontFamily: FONT_FAMILY }}>{isEdit ? tr("Edit Category", "แก้ไขหมวดหมู่") : tr("New Category", "หมวดหมู่ใหม่")} <span style={{ fontSize: 12, fontWeight: 600, color: type === "income" ? "var(--positive)" : T.indigo }}>· {type === "income" ? tr("Income", "รายรับ") : tr("Expense", "รายจ่าย")}</span></p>
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 99, border: "none", background: "var(--fill)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-2)" }}><X size={15} /></button>
         </div>
 
@@ -1894,7 +1915,7 @@ function CategoryForm({ type, initial, onSave, onClose, language = "EN" }) {
           ))}
         </div>
 
-        {error && <p style={{ color: "#EF4444", fontSize: 13, marginBottom: 12, fontWeight: 500, fontFamily: FONT_FAMILY }}>{error}</p>}
+        {error && <p style={{ color: "var(--negative)", fontSize: 13, marginBottom: 12, fontWeight: 500, fontFamily: FONT_FAMILY }}>{error}</p>}
         <button onClick={save} style={{ width: "100%", padding: "15px", borderRadius: 16, border: "none", background: T.indigo, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT_FAMILY, boxShadow: "0 8px 24px rgba(79,70,229,0.28)" }}>
           {isEdit ? tr("Save Changes", "บันทึกการเปลี่ยนแปลง") : tr("Add Category", "เพิ่มหมวดหมู่")}
         </button>
@@ -2458,7 +2479,7 @@ export default function FinanceTracker() {
                     setFormTxType(k);
                     lsSet("ft_last_type", k);
                     setForm((f) => ({ ...f, category: k === "income" ? "Salary" : "Food", split: false, reimbursed: "" }));
-                  }} style={{ flex: 1, padding: "10px 8px", borderRadius: 11, border: "none", cursor: "pointer", fontFamily: FONT_FAMILY, fontSize: 13, fontWeight: 600, background: active ? "var(--surface)" : "transparent", color: active ? (k === "income" ? "#15803D" : T.indigo) : "var(--text-3)", boxShadow: active ? "0 1px 6px rgba(15,23,42,0.10)" : "none", transition: "all 0.18s" }}>
+                  }} style={{ flex: 1, padding: "10px 8px", borderRadius: 11, border: "none", cursor: "pointer", fontFamily: FONT_FAMILY, fontSize: 13, fontWeight: 600, background: active ? "var(--surface)" : "transparent", color: active ? (k === "income" ? "var(--positive)" : T.indigo) : "var(--text-3)", boxShadow: active ? "0 1px 6px rgba(15,23,42,0.10)" : "none", transition: "all 0.18s" }}>
                     {label}
                   </button>
                 );
@@ -2494,8 +2515,8 @@ export default function FinanceTracker() {
                       onChange={(e) => setForm({ ...form, reimbursed: e.target.value })}
                       style={{ ...T.input, fontFamily: MONO_FAMILY, fontSize: 18, fontWeight: 600, marginBottom: 10 }} />
                     {form.amount && (
-                      <div style={{ padding: "10px 16px", background: "#F0FDF4", borderRadius: 12, border: "1px solid #BBF7D0" }}>
-                        <span style={{ fontSize: 13, color: "#15803D", fontFamily: MONO_FAMILY, fontWeight: 600 }}>
+                      <div style={{ padding: "10px 16px", background: "var(--positive-tint)", borderRadius: 12, border: "1px solid var(--positive-tint-border)" }}>
+                        <span style={{ fontSize: 13, color: "var(--positive)", fontFamily: MONO_FAMILY, fontWeight: 600 }}>
                           {fmt(parseFloat(form.amount)||0)} − {fmt(parseFloat(form.reimbursed)||0)} = <strong>{fmt(netAmount())}</strong> {t.net}
                         </span>
                       </div>
@@ -2530,7 +2551,7 @@ export default function FinanceTracker() {
             <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })}
               style={{ ...T.input, marginBottom: 18 }} />
 
-            {error && <p style={{ color: "#EF4444", fontSize: 13, marginBottom: 12, fontWeight: 500, fontFamily: FONT_FAMILY }}>{error}</p>}
+            {error && <p style={{ color: "var(--negative)", fontSize: 13, marginBottom: 12, fontWeight: 500, fontFamily: FONT_FAMILY }}>{error}</p>}
 
             <button onClick={handleAdd} style={{ width: "100%", padding: "14px", borderRadius: 16, border: "none", background: T.indigo, color: "#fff", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY, boxShadow: "0 4px 18px rgba(79,70,229,0.24)" }}>
               {form.split ? `${t.saveTransaction} (${fmt(netAmount())} ${t.net})` : t.saveTransaction}
@@ -2613,14 +2634,14 @@ export default function FinanceTracker() {
             <div style={{ maxWidth: 430, margin: "0 auto", padding: "0 16px 100px" }}>
               <div style={{ padding: "26px 4px 18px" }}>
                 <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 500, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT_FAMILY }}>{t.summaryLabel(mShortName, year)}</p>
-                <p style={{ margin: 0, fontSize: 44, fontWeight: 600, letterSpacing: "-2px", color: mTotal > 0 ? "#EF4444" : "var(--text)", lineHeight: 1.1, fontFamily: MONO_FAMILY }}>{mTotal > 0 ? `−${fmt(mTotal)}` : fmt(mTotal)}</p>
+                <p style={{ margin: 0, fontSize: 44, fontWeight: 600, letterSpacing: "-2px", color: mTotal > 0 ? "var(--negative)" : "var(--text)", lineHeight: 1.1, fontFamily: MONO_FAMILY }}>{mTotal > 0 ? `−${fmt(mTotal)}` : fmt(mTotal)}</p>
                 {mIncomeTotal > 0 && (
-                  <p style={{ margin: "4px 0 0", fontSize: 16, fontWeight: 600, color: "#15803D", fontFamily: MONO_FAMILY }}>+{fmt(mIncomeTotal)} income</p>
+                  <p style={{ margin: "4px 0 0", fontSize: 16, fontWeight: 600, color: "var(--positive)", fontFamily: MONO_FAMILY }}>+{fmt(mIncomeTotal)} income</p>
                 )}
                 {mIncomeTotal > 0 && (() => {
                   const mAvailable = mIncomeTotal - mTotal;
                   return (
-                    <p style={{ margin: "6px 0 0", fontSize: 13, fontWeight: 600, color: mAvailable >= 0 ? "#15803D" : "#EF4444", fontFamily: FONT_FAMILY }}>
+                    <p style={{ margin: "6px 0 0", fontSize: 13, fontWeight: 600, color: mAvailable >= 0 ? "var(--positive)" : "var(--negative)", fontFamily: FONT_FAMILY }}>
                       {t.availableToSpend}: <span style={{ fontFamily: MONO_FAMILY }}>{mAvailable < 0 && "−"}{fmt(Math.abs(mAvailable))}</span>
                     </p>
                   );
@@ -2695,14 +2716,14 @@ export default function FinanceTracker() {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                             <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", fontFamily: FONT_FAMILY }}>{tx.note || cat.label}</span>
-                            {isIncome && <span style={{ fontSize: 10, fontWeight: 600, background: "#F0FDF4", color: "#15803D", padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{tr("income", "รายรับ")}</span>}
+                            {isIncome && <span style={{ fontSize: 10, fontWeight: 600, background: "var(--positive-tint)", color: "var(--positive)", padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{tr("income", "รายรับ")}</span>}
                             {!isIncome && tx.split && <span style={{ fontSize: 10, fontWeight: 600, background: "var(--primary-tint)", color: T.indigo, padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{t.split}</span>}
                             {tx.recurringId && <span style={{ fontSize: 10, fontWeight: 600, background: "#FEFCE8", color: "#A16207", padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{t.auto}</span>}
                           </div>
                           <p style={{ ...T.muted, margin: "2px 0 0", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT_FAMILY }}>{cat.label} · {fmtDate(tx.date)}</p>
                           {tags.length > 0 && <div style={{ display: "flex", gap: 3, marginTop: 4, flexWrap: "wrap" }}>{tags.map((tag) => <span key={tag} style={{ fontSize: 10, fontWeight: 600, background: "var(--primary-tint)", color: "#6366F1", padding: "1px 7px", borderRadius: 99, fontFamily: FONT_FAMILY }}>{tag}</span>)}</div>}
                         </div>
-                        <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: isIncome ? "#15803D" : "#EF4444", flexShrink: 0 }}>{isIncome ? "+" : "−"}{fmt(tx.amount)}</span>
+                        <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: isIncome ? "var(--positive)" : "var(--negative)", flexShrink: 0 }}>{isIncome ? "+" : "−"}{fmt(tx.amount)}</span>
                         <button onClick={() => { openEditForm(tx); setActiveDetailMonth(null); setDetailCat(null); setTab("home"); setShowForm(true); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#CBD5E1", flexShrink: 0 }}><Pencil size={12} /></button>
                         <button onClick={() => handleDelete(tx.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 5, color: "#CBD5E1", flexShrink: 0 }}><Trash2 size={14} /></button>
                       </div>
@@ -2754,7 +2775,7 @@ export default function FinanceTracker() {
           <div onClick={() => setCatDeleteTgt(null)} style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,0.5)", backdropFilter: "blur(4px)" }} />
           <div style={{ position: "relative", background: "var(--surface)", borderRadius: 24, padding: "24px 22px", width: "100%", maxWidth: 360, boxShadow: "0 20px 60px rgba(15,23,42,0.3)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 12 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 14, background: "#FFF1F2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{catDeleteTgt.cat.icon}</div>
+              <div style={{ width: 44, height: 44, borderRadius: 14, background: "var(--negative-tint)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{catDeleteTgt.cat.icon}</div>
               <div>
                 <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text)", fontFamily: FONT_FAMILY }}>{tr(`Delete "${catDeleteTgt.cat.label}"?`, `ลบ "${catDeleteTgt.cat.label}"?`)}</p>
                 <p style={{ margin: 0, fontSize: 12, color: "var(--text-3)", fontFamily: FONT_FAMILY }}>{tr(`${catDeleteTgt.count} transaction${catDeleteTgt.count !== 1 ? "s" : ""} use this category`, `${catDeleteTgt.count} รายการใช้หมวดหมู่นี้`)}</p>
@@ -2765,7 +2786,7 @@ export default function FinanceTracker() {
               <span>{tr("Keep transactions", "เก็บรายการไว้")}</span>
               <span style={{ fontSize: 11, fontWeight: 400, color: "var(--text-3)" }}>{tr('Move them to "Uncategorized"', "ย้ายไปที่ “ไม่มีหมวดหมู่”")}</span>
             </button>
-            <button onClick={() => deleteCategory(catDeleteTgt.type, catDeleteTgt.cat.value, "delete")} style={{ width: "100%", padding: "13px", borderRadius: 14, border: "none", background: "#FFF1F2", color: "#BE123C", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT_FAMILY, marginBottom: 9, textAlign: "left", display: "flex", flexDirection: "column", gap: 2 }}>
+            <button onClick={() => deleteCategory(catDeleteTgt.type, catDeleteTgt.cat.value, "delete")} style={{ width: "100%", padding: "13px", borderRadius: 14, border: "none", background: "var(--negative-tint)", color: "var(--negative-strong)", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: FONT_FAMILY, marginBottom: 9, textAlign: "left", display: "flex", flexDirection: "column", gap: 2 }}>
               <span>{tr("Delete everything", "ลบทั้งหมด")}</span>
               <span style={{ fontSize: 11, fontWeight: 400, color: "#FB7185" }}>{tr(`Remove the category and its ${catDeleteTgt.count} transaction${catDeleteTgt.count !== 1 ? "s" : ""}`, `ลบหมวดหมู่และ ${catDeleteTgt.count} รายการ`)}</span>
             </button>
@@ -2793,9 +2814,9 @@ export default function FinanceTracker() {
 
       {/* NEW: Budget alert banner (dismissible) */}
       {tab === "home" && catAlertCount > 0 && (
-        <div style={{ margin: "0 16px 12px", padding: "12px 16px", background: "#FFFBEB", borderRadius: 16, border: "1.5px solid #FDE68A", display: "flex", alignItems: "center", gap: 10 }}>
-          <AlertTriangle size={15} color="#D97706" />
-          <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: "#92400E", fontFamily: FONT_FAMILY }}>
+        <div style={{ margin: "0 16px 12px", padding: "12px 16px", background: "var(--warning-tint)", borderRadius: 16, border: "1.5px solid var(--warning-tint-border)", display: "flex", alignItems: "center", gap: 10 }}>
+          <AlertTriangle size={15} color="var(--warning)" />
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: "var(--warning-text)", fontFamily: FONT_FAMILY }}>
             {tr(`${catAlertCount} budget ${catAlertCount === 1 ? "category is" : "categories are"} near or over limit`, `${catAlertCount} หมวดหมู่ใกล้หรือเกินงบที่ตั้งไว้`)}
           </span>
           <button onClick={() => {
@@ -2806,7 +2827,7 @@ export default function FinanceTracker() {
               if (catBudget && (catTotals[cat.value]||0)/catBudget >= 0.75) newDismissed[`${currentMonth()}_${cat.value}`] = true;
             });
             setDismissedAlerts(newDismissed);
-          }} style={{ background: "none", border: "none", cursor: "pointer", color: "#D97706", padding: 4 }}><X size={13} /></button>
+          }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--warning)", padding: 4 }}><X size={13} /></button>
         </div>
       )}
 
@@ -2840,12 +2861,12 @@ export default function FinanceTracker() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
               <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: FONT_FAMILY }}>{t.availableToSpend}</span>
               {availableToSpend < 0 && (
-                <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "#EF4444", fontFamily: FONT_FAMILY }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "var(--negative)", fontFamily: FONT_FAMILY }}>
                   <AlertTriangle size={12} /> {t.overspent}
                 </span>
               )}
             </div>
-            <span style={{ fontFamily: MONO_FAMILY, fontSize: 30, fontWeight: 700, letterSpacing: "-1px", color: availableToSpend >= 0 ? "#15803D" : "#EF4444" }}>
+            <span style={{ fontFamily: MONO_FAMILY, fontSize: 30, fontWeight: 700, letterSpacing: "-1px", color: availableToSpend >= 0 ? "var(--positive)" : "var(--negative)" }}>
               {availableToSpend < 0 && "−"}{fmt(Math.abs(availableToSpend))}
             </span>
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
@@ -2920,12 +2941,12 @@ export default function FinanceTracker() {
 
           {/* Waiting to be categorized */}
           {!showForm && pendingTxns.length > 0 && (
-            <CardWrap style={{ marginBottom: 14, background: "#FFFBEB", border: "1.5px solid #FDE68A" }}>
-              <p style={{ ...T.label, margin: "0 0 10px", color: "#92400E", fontFamily: FONT_FAMILY }}>
+            <CardWrap style={{ marginBottom: 14, background: "var(--warning-tint)", border: "1.5px solid var(--warning-tint-border)" }}>
+              <p style={{ ...T.label, margin: "0 0 10px", color: "var(--warning-text)", fontFamily: FONT_FAMILY }}>
                 🗂️ {tr("Waiting to categorize", "รอจัดหมวดหมู่")} · {pendingTxns.length}
               </p>
               {pendingTxns.map((tx) => (
-                <div key={tx.id} style={{ background: "var(--surface)", borderRadius: 16, padding: "12px 14px", marginBottom: 8, border: "1px solid #FDE68A" }}>
+                <div key={tx.id} style={{ background: "var(--surface)", borderRadius: 16, padding: "12px 14px", marginBottom: 8, border: "1px solid var(--warning-tint-border)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                     <span style={{ fontSize: 18, fontWeight: 700, color: "var(--text-3)", fontFamily: MONO_FAMILY }}>฿</span>
                     <input type="text" inputMode="decimal" value={tx.amount || ""} placeholder="0"
@@ -2959,7 +2980,7 @@ export default function FinanceTracker() {
                       setFormTxType(key);
                       lsSet("ft_last_type", key);
                       setForm((f) => ({ ...f, category: key === "income" ? "Salary" : "Food", split: false, reimbursed: "" }));
-                    }} style={{ flex: 1, padding: "10px 8px", borderRadius: 11, border: "none", cursor: "pointer", fontFamily: FONT_FAMILY, fontSize: 13, fontWeight: 600, background: active ? "var(--surface)" : "transparent", color: active ? (key === "income" ? "#15803D" : T.indigo) : "var(--text-3)", boxShadow: active ? "0 1px 6px rgba(15,23,42,0.10)" : "none", transition: "all 0.18s" }}>
+                    }} style={{ flex: 1, padding: "10px 8px", borderRadius: 11, border: "none", cursor: "pointer", fontFamily: FONT_FAMILY, fontSize: 13, fontWeight: 600, background: active ? "var(--surface)" : "transparent", color: active ? (key === "income" ? "var(--positive)" : T.indigo) : "var(--text-3)", boxShadow: active ? "0 1px 6px rgba(15,23,42,0.10)" : "none", transition: "all 0.18s" }}>
                       {label}
                     </button>
                   );
@@ -2996,8 +3017,8 @@ export default function FinanceTracker() {
                         onChange={(e) => setForm({ ...form, reimbursed: e.target.value })}
                         style={{ ...T.input, fontFamily: MONO_FAMILY, fontSize: 18, fontWeight: 600, marginBottom: 10 }} />
                       {form.amount && (
-                        <div style={{ padding: "10px 16px", background: "#F0FDF4", borderRadius: 12, border: "1px solid #BBF7D0" }}>
-                          <span style={{ fontSize: 13, color: "#15803D", fontFamily: MONO_FAMILY, fontWeight: 600 }}>
+                        <div style={{ padding: "10px 16px", background: "var(--positive-tint)", borderRadius: 12, border: "1px solid var(--positive-tint-border)" }}>
+                          <span style={{ fontSize: 13, color: "var(--positive)", fontFamily: MONO_FAMILY, fontWeight: 600 }}>
                             {fmt(parseFloat(form.amount)||0)} − {fmt(parseFloat(form.reimbursed)||0)} = <strong>{fmt(netAmount())}</strong> {t.net}
                           </span>
                         </div>
@@ -3032,7 +3053,7 @@ export default function FinanceTracker() {
               <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })}
                 style={{ ...T.input, marginBottom: 18 }} />
 
-              {error && <p style={{ color: "#EF4444", fontSize: 13, marginBottom: 12, fontWeight: 500, fontFamily: FONT_FAMILY }}>{error}</p>}
+              {error && <p style={{ color: "var(--negative)", fontSize: 13, marginBottom: 12, fontWeight: 500, fontFamily: FONT_FAMILY }}>{error}</p>}
 
               <button onClick={handleAdd} style={{ width: "100%", padding: "14px", borderRadius: 16, border: "none", background: T.indigo, color: "#fff", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: FONT_FAMILY, boxShadow: "0 4px 18px rgba(79,70,229,0.24)" }}>
                 {editingTx ? "💾 Update Transaction" : (form.split ? `${t.saveTransaction} (${fmt(netAmount())} ${t.net})` : t.saveTransaction)}
@@ -3087,7 +3108,7 @@ export default function FinanceTracker() {
                       <span style={{ fontSize: 14, fontWeight: 700, color: open ? c.pastelText : "var(--text)", fontFamily: FONT_FAMILY }}>{c.label}</span>
                       <p style={{ ...T.muted, margin: "1px 0 0", fontSize: 11, fontFamily: FONT_FAMILY }}>{txs.length} {t.transactions}</p>
                     </div>
-                    <span style={{ fontFamily: MONO_FAMILY, fontSize: 15, fontWeight: 700, color: isIncome ? "#15803D" : "#EF4444", flexShrink: 0 }}>{isIncome ? "+" : "−"}{fmt(total)}</span>
+                    <span style={{ fontFamily: MONO_FAMILY, fontSize: 15, fontWeight: 700, color: isIncome ? "var(--positive)" : "var(--negative)", flexShrink: 0 }}>{isIncome ? "+" : "−"}{fmt(total)}</span>
                     <ChevronDown size={16} color={open ? c.pastelText : "#CBD5E1"} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }} />
                   </button>
                   {/* Transactions */}
@@ -3104,7 +3125,7 @@ export default function FinanceTracker() {
                           </div>
                           <p style={{ ...T.muted, margin: "2px 0 0", fontSize: 11, fontFamily: FONT_FAMILY }}>{fmtDate(tx.date)}{tags.length > 0 ? " · " + tags.join(" ") : ""}</p>
                         </div>
-                        <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: isIncome ? "#15803D" : "#EF4444", flexShrink: 0 }}>{isIncome ? "+" : "−"}{fmt(tx.amount)}</span>
+                        <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: isIncome ? "var(--positive)" : "var(--negative)", flexShrink: 0 }}>{isIncome ? "+" : "−"}{fmt(tx.amount)}</span>
                         <button onClick={() => { openEditForm(tx); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#CBD5E1", flexShrink: 0 }}><Pencil size={13} /></button>
                         <button onClick={() => handleDelete(tx.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#CBD5E1", flexShrink: 0 }}><Trash2 size={13} /></button>
                       </div>
@@ -3192,7 +3213,7 @@ export default function FinanceTracker() {
                           <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", fontFamily: FONT_FAMILY }}>{tx.note || cat.label}</span>
                           <p style={{ ...T.muted, margin: "2px 0 0", fontSize: 11, fontFamily: FONT_FAMILY }}>{fmtDate(tx.date)}{tags.length > 0 ? " · " + tags.join(" ") : ""}</p>
                         </div>
-                        <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: "#EF4444", flexShrink: 0 }}>−{fmt(tx.amount)}</span>
+                        <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: "var(--negative)", flexShrink: 0 }}>−{fmt(tx.amount)}</span>
                         <button onClick={() => openEditForm(tx)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#CBD5E1", flexShrink: 0 }}><Pencil size={13} /></button>
                         <button onClick={() => handleDelete(tx.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#CBD5E1", flexShrink: 0 }}><Trash2 size={13} /></button>
                       </div>
@@ -3307,14 +3328,14 @@ export default function FinanceTracker() {
               <div style={{ maxWidth: 430, margin: "0 auto", padding: "0 16px 100px" }}>
                 <div style={{ padding: "26px 4px 16px" }}>
                   <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 500, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONT_FAMILY }}>{t.totalSpentLabel}</p>
-                  <p style={{ margin: 0, fontSize: 40, fontWeight: 600, letterSpacing: "-1.5px", color: mTotal > 0 ? "#EF4444" : "var(--text)", lineHeight: 1.1, fontFamily: MONO_FAMILY }}>{mTotal > 0 ? `−${fmt(mTotal)}` : fmt(mTotal)}</p>
+                  <p style={{ margin: 0, fontSize: 40, fontWeight: 600, letterSpacing: "-1.5px", color: mTotal > 0 ? "var(--negative)" : "var(--text)", lineHeight: 1.1, fontFamily: MONO_FAMILY }}>{mTotal > 0 ? `−${fmt(mTotal)}` : fmt(mTotal)}</p>
                   {mIncomeTotal > 0 && (
-                    <p style={{ margin: "4px 0 0", fontSize: 15, fontWeight: 600, color: "#15803D", fontFamily: MONO_FAMILY }}>+{fmt(mIncomeTotal)} income</p>
+                    <p style={{ margin: "4px 0 0", fontSize: 15, fontWeight: 600, color: "var(--positive)", fontFamily: MONO_FAMILY }}>+{fmt(mIncomeTotal)} income</p>
                   )}
                   {mIncomeTotal > 0 && (() => {
                     const mAvailable = mIncomeTotal - mTotal;
                     return (
-                      <p style={{ margin: "6px 0 0", fontSize: 13, fontWeight: 600, color: mAvailable >= 0 ? "#15803D" : "#EF4444", fontFamily: FONT_FAMILY }}>
+                      <p style={{ margin: "6px 0 0", fontSize: 13, fontWeight: 600, color: mAvailable >= 0 ? "var(--positive)" : "var(--negative)", fontFamily: FONT_FAMILY }}>
                         {t.availableToSpend}: <span style={{ fontFamily: MONO_FAMILY }}>{mAvailable < 0 && "−"}{fmt(Math.abs(mAvailable))}</span>
                       </p>
                     );
@@ -3382,14 +3403,14 @@ export default function FinanceTracker() {
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                               <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", fontFamily: FONT_FAMILY }}>{tx.note || cat.label}</span>
-                              {isIncome && <span style={{ fontSize: 10, fontWeight: 600, background: "#F0FDF4", color: "#15803D", padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{tr("income", "รายรับ")}</span>}
+                              {isIncome && <span style={{ fontSize: 10, fontWeight: 600, background: "var(--positive-tint)", color: "var(--positive)", padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{tr("income", "รายรับ")}</span>}
                               {!isIncome && tx.split && <span style={{ fontSize: 10, fontWeight: 600, background: "var(--primary-tint)", color: T.indigo, padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{t.split}</span>}
                               {tx.recurringId && <span style={{ fontSize: 10, fontWeight: 600, background: "#FEFCE8", color: "#A16207", padding: "1px 6px", borderRadius: 5, fontFamily: FONT_FAMILY }}>{t.auto}</span>}
                             </div>
                             <p style={{ ...T.muted, margin: "2px 0 0", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT_FAMILY }}>{cat.label} · {fmtDate(tx.date)}</p>
                             {tags.length > 0 && <div style={{ display: "flex", gap: 3, marginTop: 4, flexWrap: "wrap" }}>{tags.map((tag) => <span key={tag} style={{ fontSize: 10, fontWeight: 600, background: "var(--primary-tint)", color: "#6366F1", padding: "1px 7px", borderRadius: 99, fontFamily: FONT_FAMILY }}>{tag}</span>)}</div>}
                           </div>
-                          <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: isIncome ? "#15803D" : "#EF4444", flexShrink: 0 }}>{isIncome ? "+" : "−"}{fmt(tx.amount)}</span>
+                          <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: isIncome ? "var(--positive)" : "var(--negative)", flexShrink: 0 }}>{isIncome ? "+" : "−"}{fmt(tx.amount)}</span>
                           <button onClick={() => { openEditForm(tx); setOpenMonth(null); setTab("home"); setShowForm(true); window.scrollTo({ top: 0, behavior: "smooth" }); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "#CBD5E1", flexShrink: 0 }}><Pencil size={12} /></button>
                           <button onClick={() => handleDelete(tx.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 5, color: "#CBD5E1", flexShrink: 0 }}><Trash2 size={14} /></button>
                         </div>
@@ -3455,11 +3476,11 @@ export default function FinanceTracker() {
                       </div>
                       <ChevronRight size={13} color={hasData ? "var(--text-3)" : "#CBD5E1"} />
                     </div>
-                    <p style={{ fontFamily: MONO_FAMILY, fontSize: 15, fontWeight: 600, color: total > 0 ? "#EF4444" : (hasData ? "var(--text)" : "#CBD5E1"), margin: "0 0 3px" }}>
+                    <p style={{ fontFamily: MONO_FAMILY, fontSize: 15, fontWeight: 600, color: total > 0 ? "var(--negative)" : (hasData ? "var(--text)" : "#CBD5E1"), margin: "0 0 3px" }}>
                       {total > 0 ? `−${fmt(total)}` : (hasData ? fmt(total) : fmt(0))}
                     </p>
                     {incomeTotal > 0 && (
-                      <p style={{ fontFamily: MONO_FAMILY, fontSize: 12, fontWeight: 600, color: "#15803D", margin: "0 0 6px" }}>+{fmt(incomeTotal)}</p>
+                      <p style={{ fontFamily: MONO_FAMILY, fontSize: 12, fontWeight: 600, color: "var(--positive)", margin: "0 0 6px" }}>+{fmt(incomeTotal)}</p>
                     )}
                     {hasData ? (
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: incomeTotal > 0 ? 0 : 4 }}>
@@ -3552,7 +3573,7 @@ export default function FinanceTracker() {
             {[{ type: "expense", list: CATEGORIES, label: tr("Expense", "รายจ่าย") }, { type: "income", list: INCOME_CATS, label: tr("Income", "รายรับ") }].map(({ type, list, label }) => (
               <div key={type} style={{ marginBottom: 14 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: type === "income" ? "#15803D" : T.indigo, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: FONT_FAMILY }}>{label}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: type === "income" ? "var(--positive)" : T.indigo, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: FONT_FAMILY }}>{label}</span>
                   <button onClick={() => setCatModal({ type, cat: null })} style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 11px", borderRadius: 99, border: "none", cursor: "pointer", fontFamily: FONT_FAMILY, fontWeight: 600, fontSize: 12, background: T.indigoLight, color: T.indigo }}><Plus size={12} /> {tr("Add", "เพิ่ม")}</button>
                 </div>
                 {list.map((cat) => (
@@ -3629,7 +3650,7 @@ export default function FinanceTracker() {
                     <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--text)", fontFamily: FONT_FAMILY }}>{sub.name}</p>
                     <p style={{ ...T.muted, margin: 0, fontSize: 12, fontFamily: FONT_FAMILY }}>{t.dayEachMonth(sub.day)}</p>
                   </div>
-                  <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: "#EF4444" }}>{fmt(sub.amount)}</span>
+                  <span style={{ fontFamily: MONO_FAMILY, fontSize: 14, fontWeight: 600, color: "var(--negative)" }}>{fmt(sub.amount)}</span>
                   <button onClick={() => setSubscriptions((p) => p.filter((s) => s.id !== sub.id))} style={{ background: "none", border: "none", cursor: "pointer", color: "#CBD5E1", padding: 6 }}><Trash2 size={14} /></button>
                 </div>
               );
@@ -3653,7 +3674,7 @@ export default function FinanceTracker() {
             <button key={id} onClick={() => { setTab(id); setShowForm(false); }} style={{ flex: 1, padding: "10px 4px 15px", border: "none", background: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, color: active ? T.indigo : "var(--text-3)", fontFamily: FONT_FAMILY, transition: "color 0.18s" }}>
               <div style={{ width: 32, height: 32, borderRadius: 11, background: active ? T.indigoLight : "transparent", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.18s", position: "relative" }}>
                 <Icon size={17} />
-                {showBadge && <div style={{ position: "absolute", top: 4, right: 4, width: 7, height: 7, borderRadius: "50%", background: "#EF4444", border: "1.5px solid var(--bg)" }} />}
+                {showBadge && <div style={{ position: "absolute", top: 4, right: 4, width: 7, height: 7, borderRadius: "50%", background: "var(--negative)", border: "1.5px solid var(--bg)" }} />}
               </div>
               <span style={{ fontSize: 10, fontWeight: active ? 600 : 400, letterSpacing: "0.01em", fontFamily: FONT_FAMILY }}>{label}</span>
             </button>
