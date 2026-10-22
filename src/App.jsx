@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from "react";
-import { PlusCircle, Wallet, Trash2, Settings, BarChart2, Home, X, Plus, AlertTriangle, Scissors, BookOpen, ChevronDown, ChevronUp, Sparkles, ArrowLeft, ChevronLeft, ChevronRight, TrendingUp, Globe, Download, Pencil, RotateCcw, Bell, Type } from "lucide-react";
+import { PlusCircle, Wallet, Trash2, Settings, BarChart2, Home, X, Plus, AlertTriangle, Scissors, BookOpen, ChevronDown, ChevronUp, Sparkles, ArrowLeft, ChevronLeft, ChevronRight, TrendingUp, Globe, Download, Pencil, RotateCcw, Bell, Type, CreditCard } from "lucide-react";
+import CardsTab from "./CardsTab";
+import DailyCalendar from "./DailyCalendar";
 import { AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie } from "recharts";
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2163,6 +2165,19 @@ export default function FinanceTracker() {
     setTransactions((prev) => prev.filter((t) => t.groupExpenseId !== groupExpenseId));
   }, []);
 
+  // Replace every card-mirrored transaction with the Cards tab's current list.
+  const syncCardTxns = useCallback((list) => {
+    setTransactions((prev) => [...list, ...prev.filter((tx) => !tx.cardEntryId)]);
+  }, []);
+  const ocrRead = useCallback(async (file) => {
+    if (!window.Tesseract) throw new Error("OCR not loaded");
+    const worker = await getOcrWorker(() => {});
+    let ocrInput = file;
+    try { ocrInput = await preprocessReceiptImage(file); } catch (err) { console.error("Preprocessing failed, using raw image:", err); }
+    const { data } = await worker.recognize(ocrInput);
+    return data.text;
+  }, []);
+
   // NEW: Undo delete
   const [undoStack,     setUndoStack]     = useState([]); // [{tx, idx}]
   const [undoToast,     setUndoToast]     = useState(null); // {tx, timeoutId}
@@ -3222,6 +3237,8 @@ export default function FinanceTracker() {
       {/* ══ ANALYTICS ══ */}
       {tab === "analytics" && (
         <div style={{ padding: "0 16px" }}>
+          <SectionLabel>{tr("Daily spending", "รายจ่ายรายวัน")}</SectionLabel>
+          <DailyCalendar transactions={transactions} fmt={fmt} language={language} getCat={(tx) => getCat(tx.category, language)} />
           <SectionLabel>{t.spendingByCat}</SectionLabel>
           {CATEGORIES.map((cat) => {
             const amt = catTotals[cat.value] || 0;
@@ -3366,6 +3383,11 @@ export default function FinanceTracker() {
         <div style={{ padding: "0" }}>
           <GroupsTab profile={profile} onLinkUpsert={linkUpsertTx} onLinkDelete={linkDeleteTx} language={language} />
         </div>
+      )}
+
+      {/* ══ CREDIT CARDS ══ */}
+      {tab === "cards" && (
+        <CardsTab language={language} expenseCats={CATEGORIES} fmt={fmt} ocrRead={ocrRead} onSync={syncCardTxns} showToast={showToast} />
       )}
 
       {/* ══ STATEMENT TAB ══ */}
@@ -3739,6 +3761,7 @@ export default function FinanceTracker() {
         {[
           { id: "home",      label: t.home,      Icon: Home },
           { id: "analytics", label: t.analytics, Icon: BarChart2 },
+          { id: "cards",     label: tr("Cards", "บัตร"), Icon: CreditCard },
           { id: "groups",    label: tr("Groups", "กลุ่ม"), Icon: Wallet },
           { id: "statement", label: t.statement, Icon: BookOpen },
           { id: "settings",  label: t.settings,  Icon: Settings },
