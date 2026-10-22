@@ -11,11 +11,11 @@ const FONT = "var(--font-sans)";
 const MONO = "var(--font-mono)";
 const LS_KEY = "ft_cards";
 
-const card = { background: "var(--surface)", borderRadius: 20, border: "1px solid var(--border)", boxShadow: "var(--card-shadow)" };
-const label = { fontSize: 11, fontWeight: 500, color: "var(--text-3)", letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: MONO };
-const input = { width: "100%", padding: "12px 14px", borderRadius: 12, border: "1.5px solid var(--border)", fontSize: 14, color: "var(--text)", fontFamily: FONT, background: "var(--surface)", outline: "none", boxSizing: "border-box" };
-const pill = (on) => ({ flex: 1, padding: "9px 4px", borderRadius: 10, border: "none", cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 600, background: on ? "var(--surface)" : "transparent", color: on ? "var(--text)" : "var(--text-3)", boxShadow: on ? "0 2px 8px rgba(15,23,42,0.08)" : "none" });
-const primaryBtn = { width: "100%", padding: "14px", borderRadius: 14, border: "none", background: "var(--inverse)", color: "var(--on-inverse)", fontFamily: FONT, fontSize: 14, fontWeight: 700, cursor: "pointer" };
+const card = { background: "var(--surface)", borderRadius: 24, border: "1px solid var(--border)", boxShadow: "var(--card-shadow)" };
+const label = { fontSize: 15, fontWeight: 600, color: "var(--text-3)", fontFamily: FONT };
+const input = { width: "100%", padding: "12px 14px", borderRadius: 12, border: "1.5px solid var(--border)", fontSize: 17, color: "var(--text)", fontFamily: FONT, background: "var(--surface)", outline: "none", boxSizing: "border-box" };
+const pill = (on) => ({ flex: 1, padding: "9px 4px", borderRadius: 10, border: "none", cursor: "pointer", fontFamily: FONT, fontSize: 14, fontWeight: 600, background: on ? "var(--surface)" : "transparent", color: on ? "var(--text)" : "var(--text-3)", boxShadow: on ? "0 2px 8px rgba(15,23,42,0.08)" : "none" });
+const primaryBtn = { width: "100%", padding: "14px", borderRadius: 14, border: "none", background: "var(--inverse)", color: "var(--on-inverse)", fontFamily: FONT, fontSize: 16, fontWeight: 700, cursor: "pointer" };
 
 const CARD_COLORS = ["#1e293b", "#0f766e", "#1d4ed8", "#7c3aed", "#be123c", "#b45309", "#15803d", "#475569"];
 
@@ -147,17 +147,17 @@ function CardFace({ c, balance, fmt, tr, onClick }) {
         <span style={{ fontSize: 15, fontWeight: 700 }}>{c.name}</span>
         <CreditCard size={20} style={{ opacity: 0.8 }} />
       </div>
-      <p style={{ margin: "18px 0 2px", fontSize: 11, opacity: 0.75, letterSpacing: "0.06em", textTransform: "uppercase" }}>{tr("Outstanding", "ยอดค้างชำระ")}</p>
+      <p style={{ margin: "18px 0 2px", fontSize: 13, opacity: 0.75, letterSpacing: 0 }}>{tr("Outstanding", "ยอดค้างชำระ")}</p>
       <p style={{ margin: 0, fontSize: 26, fontWeight: 700, fontFamily: MONO }}>{fmt(Math.max(balance, 0))}</p>
       {c.limit > 0 && (
         <div style={{ marginTop: 12 }}>
           <div style={{ height: 5, background: "rgba(255,255,255,0.25)", borderRadius: 99, overflow: "hidden" }}>
             <div style={{ height: "100%", width: `${used * 100}%`, background: used > 0.8 ? "#fecaca" : "#fff", borderRadius: 99 }} />
           </div>
-          <p style={{ margin: "6px 0 0", fontSize: 11, opacity: 0.8 }}>{tr("Available", "วงเงินคงเหลือ")} {fmt(Math.max(c.limit - Math.max(balance, 0), 0))} / {fmt(c.limit)}</p>
+          <p style={{ margin: "6px 0 0", fontSize: 13, opacity: 0.8 }}>{tr("Available", "วงเงินคงเหลือ")} {fmt(Math.max(c.limit - Math.max(balance, 0), 0))} / {fmt(c.limit)}</p>
         </div>
       )}
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14, fontSize: 12, opacity: 0.85, fontFamily: MONO }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14, fontSize: 14, opacity: 0.85, fontFamily: MONO }}>
         <span>•••• {c.last4 || "0000"}</span>
         <span>{tr("Cut-off", "ตัดรอบ")} {c.cutoffDay} · {tr("Due", "ครบกำหนด")} {c.dueDay}</span>
       </div>
@@ -213,13 +213,13 @@ function EntryForm({ cardName, expenseCats, defaultDate, onSave, onClose, tr, la
             {[3, 4, 6, 10, 12].map((n) => <button key={n} onClick={(e) => { e.preventDefault(); setF((p) => ({ ...p, months: String(n) })); }} style={{ ...pill(months === n), background: months === n ? "var(--inverse)" : "var(--fill)", color: months === n ? "var(--on-inverse)" : "var(--text-2)" }}>{n}</button>)}
           </div>
           <input style={input} value={f.months} onChange={set("months")} inputMode="numeric" />
-          {amt > 0 && <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--text-2)", fontFamily: FONT }}>{tr("≈", "≈")} <b style={{ fontFamily: MONO }}>{(amt / months).toFixed(2)}</b> {tr("per month", "ต่อเดือน")}</p>}
+          {amt > 0 && <p style={{ margin: "6px 0 0", fontSize: 14, color: "var(--text-2)", fontFamily: FONT }}>{tr("≈", "≈")} <b style={{ fontFamily: MONO }}>{(amt / months).toFixed(2)}</b> {tr("per month", "ต่อเดือน")}</p>}
         </Field>
       )}
       {(kind === "purchase" || kind === "installment") && (
         <Field name={tr("Category", "หมวดหมู่")}>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {expenseCats.map((c) => <button key={c.value} onClick={(e) => { e.preventDefault(); setF((p) => ({ ...p, category: c.value })); }} style={{ padding: "7px 12px", borderRadius: 99, border: f.category === c.value ? `1.5px solid ${c.bar}` : "1.5px solid var(--border)", background: f.category === c.value ? c.pastelBg : "var(--surface)", color: f.category === c.value ? c.pastelText : "var(--text-2)", fontFamily: FONT, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{c.icon} {c.labelShort || c.label}</button>)}
+            {expenseCats.map((c) => <button key={c.value} onClick={(e) => { e.preventDefault(); setF((p) => ({ ...p, category: c.value })); }} style={{ padding: "7px 12px", borderRadius: 99, border: f.category === c.value ? `1.5px solid ${c.bar}` : "1.5px solid var(--border)", background: f.category === c.value ? c.pastelBg : "var(--surface)", color: f.category === c.value ? c.pastelText : "var(--text-2)", fontFamily: FONT, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>{c.icon} {c.labelShort || c.label}</button>)}
           </div>
         </Field>
       )}
@@ -239,24 +239,24 @@ function ImportReview({ rows: initialRows, expenseCats, fmt, onSave, onClose, tr
   return (
     <Sheet title={tr("Review statement", "ตรวจสอบใบแจ้งยอด")} onClose={onClose}>
       {rows.length === 0 ? (
-        <p style={{ fontSize: 13, color: "var(--text-2)", fontFamily: FONT, lineHeight: 1.6 }}>{tr("No rows with a date and amount were found. Try a sharper, straight-on photo or screenshot of the transaction list.", "ไม่พบรายการที่มีวันที่และยอดเงิน ลองถ่ายภาพให้ชัดและตรงขึ้น หรือใช้ภาพหน้าจอรายการ")}</p>
+        <p style={{ fontSize: 15, color: "var(--text-2)", fontFamily: FONT, lineHeight: 1.6 }}>{tr("No rows with a date and amount were found. Try a sharper, straight-on photo or screenshot of the transaction list.", "ไม่พบรายการที่มีวันที่และยอดเงิน ลองถ่ายภาพให้ชัดและตรงขึ้น หรือใช้ภาพหน้าจอรายการ")}</p>
       ) : (
         <>
-          <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-2)", fontFamily: FONT }}>{tr("Check each row — untick anything that isn't a transaction.", "ตรวจสอบแต่ละรายการ — เอาเครื่องหมายออกหากไม่ใช่รายการ")}</p>
+          <p style={{ margin: "0 0 12px", fontSize: 14, color: "var(--text-2)", fontFamily: FONT }}>{tr("Check each row — untick anything that isn't a transaction.", "ตรวจสอบแต่ละรายการ — เอาเครื่องหมายออกหากไม่ใช่รายการ")}</p>
           {rows.map((r) => (
             <div key={r.id} style={{ border: "1px solid var(--border)", borderRadius: 14, padding: 10, marginBottom: 8, opacity: r.on ? 1 : 0.45 }}>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input type="checkbox" checked={r.on} onChange={(e) => upd(r.id, { on: e.target.checked })} style={{ width: 18, height: 18 }} />
-                <input style={{ ...input, padding: "7px 10px", fontSize: 13 }} value={r.note} onChange={(e) => upd(r.id, { note: e.target.value })} />
-                <input style={{ ...input, padding: "7px 10px", fontSize: 13, width: 96, fontFamily: MONO, textAlign: "right" }} value={r.amount} onChange={(e) => upd(r.id, { amount: e.target.value })} inputMode="decimal" />
+                <input style={{ ...input, padding: "7px 10px", fontSize: 15 }} value={r.note} onChange={(e) => upd(r.id, { note: e.target.value })} />
+                <input style={{ ...input, padding: "7px 10px", fontSize: 15, width: 96, fontFamily: MONO, textAlign: "right" }} value={r.amount} onChange={(e) => upd(r.id, { amount: e.target.value })} inputMode="decimal" />
               </div>
               <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                <input type="date" style={{ ...input, padding: "6px 8px", fontSize: 12 }} value={r.date} onChange={(e) => upd(r.id, { date: e.target.value })} />
-                <select style={{ ...input, padding: "6px 8px", fontSize: 12 }} value={r.kind} onChange={(e) => upd(r.id, { kind: e.target.value })}>
+                <input type="date" style={{ ...input, padding: "6px 8px", fontSize: 14 }} value={r.date} onChange={(e) => upd(r.id, { date: e.target.value })} />
+                <select style={{ ...input, padding: "6px 8px", fontSize: 14 }} value={r.kind} onChange={(e) => upd(r.id, { kind: e.target.value })}>
                   {Object.entries(KINDS).map(([k, v]) => <option key={k} value={k}>{v.icon} {lang === "TH" ? v.th : v.en}</option>)}
                 </select>
                 {(r.kind === "purchase" || r.kind === "installment") && (
-                  <select style={{ ...input, padding: "6px 8px", fontSize: 12 }} value={r.category} onChange={(e) => upd(r.id, { category: e.target.value })}>
+                  <select style={{ ...input, padding: "6px 8px", fontSize: 14 }} value={r.category} onChange={(e) => upd(r.id, { category: e.target.value })}>
                     {expenseCats.map((c) => <option key={c.value} value={c.value}>{c.icon} {c.labelShort || c.label}</option>)}
                   </select>
                 )}
@@ -348,16 +348,16 @@ export default function CardsTab({ language = "EN", expenseCats, fmt, ocrRead, o
           <div>
             <p style={{ ...label, margin: "0 0 4px" }}>{tr("Credit cards", "บัตรเครดิต")}</p>
             <p style={{ margin: 0, fontSize: 28, fontWeight: 700, color: "var(--text)", fontFamily: MONO }}>{fmt(totalOut)}</p>
-            <p style={{ margin: 0, fontSize: 12, color: "var(--text-2)", fontFamily: FONT }}>{tr("total outstanding", "ยอดค้างชำระรวม")}</p>
+            <p style={{ margin: 0, fontSize: 14, color: "var(--text-2)", fontFamily: FONT }}>{tr("total outstanding", "ยอดค้างชำระรวม")}</p>
           </div>
-          <button onClick={() => setSheet("card")} style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRadius: 12, border: "none", background: "var(--inverse)", color: "var(--on-inverse)", fontFamily: FONT, fontSize: 13, fontWeight: 700, cursor: "pointer" }}><Plus size={15} /> {tr("Card", "บัตร")}</button>
+          <button onClick={() => setSheet("card")} style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRadius: 12, border: "none", background: "var(--inverse)", color: "var(--on-inverse)", fontFamily: FONT, fontSize: 15, fontWeight: 700, cursor: "pointer" }}><Plus size={15} /> {tr("Card", "บัตร")}</button>
         </div>
 
         {data.cards.length === 0 && (
           <div style={{ ...card, textAlign: "center", padding: "40px 24px" }}>
             <div style={{ fontSize: 42, marginBottom: 10 }}>💳</div>
             <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: "var(--text)", fontFamily: FONT }}>{tr("Track your credit cards", "จดค่าบัตรเครดิต")}</p>
-            <p style={{ margin: "0 0 18px", fontSize: 13, color: "var(--text-2)", fontFamily: FONT, lineHeight: 1.6 }}>{tr("Add a card, then upload its statement or log purchases, installments, interest and cashback. Everything flows into your monthly spending.", "เพิ่มบัตร แล้วอัปโหลดใบแจ้งยอด หรือจดรายจ่าย ยอดผ่อน ดอกเบี้ย และเงินคืน ทุกอย่างรวมเข้ากับรายจ่ายรายเดือน")}</p>
+            <p style={{ margin: "0 0 18px", fontSize: 15, color: "var(--text-2)", fontFamily: FONT, lineHeight: 1.6 }}>{tr("Add a card, then upload its statement or log purchases, installments, interest and cashback. Everything flows into your monthly spending.", "เพิ่มบัตร แล้วอัปโหลดใบแจ้งยอด หรือจดรายจ่าย ยอดผ่อน ดอกเบี้ย และเงินคืน ทุกอย่างรวมเข้ากับรายจ่ายรายเดือน")}</p>
             <button onClick={() => setSheet("card")} style={{ ...primaryBtn, width: "auto", padding: "12px 22px" }}>{tr("Add your first card", "เพิ่มบัตรใบแรก")}</button>
           </div>
         )}
@@ -371,7 +371,7 @@ export default function CardsTab({ language = "EN", expenseCats, fmt, ocrRead, o
             <div key={c.id}>
               <CardFace c={c} balance={bal} fmt={fmt} tr={tr} onClick={() => { setOpenId(c.id); setCycle(null); }} />
               {last.totalDue > 0 && (
-                <div style={{ ...card, borderRadius: 14, padding: "10px 14px", margin: "-4px 0 14px", display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: FONT, color: unpaid > 0 ? (last.due < today() ? "var(--negative)" : "var(--text-2)") : "var(--positive)" }}>
+                <div style={{ ...card, borderRadius: 14, padding: "10px 14px", margin: "-4px 0 14px", display: "flex", justifyContent: "space-between", fontSize: 14, fontFamily: FONT, color: unpaid > 0 ? (last.due < today() ? "var(--negative)" : "var(--text-2)") : "var(--positive)" }}>
                   <span>{unpaid > 0 ? `${tr("Due", "ครบกำหนด")} ${shortDate(last.due)}` : tr("Last statement paid", "ชำระรอบล่าสุดแล้ว")}</span>
                   <span style={{ fontFamily: MONO, fontWeight: 600 }}>{fmt(Math.max(unpaid, 0) || last.totalDue)}</span>
                 </div>
@@ -397,7 +397,7 @@ export default function CardsTab({ language = "EN", expenseCats, fmt, ocrRead, o
   return (
     <div style={{ padding: "8px 16px 0" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <button onClick={() => setOpenId(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: "var(--text-2)", fontFamily: FONT, fontSize: 13, fontWeight: 600, padding: 0 }}><ArrowLeft size={15} /> {tr("All cards", "บัตรทั้งหมด")}</button>
+        <button onClick={() => setOpenId(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", color: "var(--text-2)", fontFamily: FONT, fontSize: 15, fontWeight: 600, padding: 0 }}><ArrowLeft size={15} /> {tr("All cards", "บัตรทั้งหมด")}</button>
         <button onClick={() => setSheet("editCard")} aria-label="Edit card" style={{ background: "var(--fill)", border: "none", borderRadius: 10, padding: 8, cursor: "pointer", color: "var(--text-2)" }}><Pencil size={14} /></button>
       </div>
       <CardFace c={open} balance={outstanding(open, data.entries)} fmt={fmt} tr={tr} />
@@ -407,7 +407,7 @@ export default function CardsTab({ language = "EN", expenseCats, fmt, ocrRead, o
         <button aria-label="Previous statement" onClick={() => setCycle(norm(cur.y, cur.m - 1))} style={{ background: "var(--fill)", border: "none", borderRadius: 10, padding: 8, cursor: "pointer", color: "var(--text-2)" }}><ChevronLeft size={16} /></button>
         <div style={{ textAlign: "center" }}>
           <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text)", fontFamily: FONT }}>{tr("Statement", "ใบแจ้งยอด")} {monthName(cur.y, cur.m)}</p>
-          <p style={{ margin: 0, fontSize: 11, color: "var(--text-3)", fontFamily: MONO }}>{shortDate(stmt.start)} – {shortDate(stmt.end)}{closed ? "" : ` · ${tr("open", "รอบปัจจุบัน")}`}</p>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--text-3)", fontFamily: MONO }}>{shortDate(stmt.start)} – {shortDate(stmt.end)}{closed ? "" : ` · ${tr("open", "รอบปัจจุบัน")}`}</p>
         </div>
         <button aria-label="Next statement" onClick={() => setCycle(norm(cur.y, cur.m + 1))} style={{ background: "var(--fill)", border: "none", borderRadius: 10, padding: 8, cursor: "pointer", color: "var(--text-2)" }}><ChevronRight size={16} /></button>
       </div>
@@ -421,7 +421,7 @@ export default function CardsTab({ language = "EN", expenseCats, fmt, ocrRead, o
           </div>
           <div style={{ textAlign: "right" }}>
             <p style={{ ...label, margin: "0 0 4px" }}>{tr("Due date", "ครบกำหนด")}</p>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: closed && unpaid > 0 && stmt.due < today() ? "var(--negative)" : "var(--text)", fontFamily: FONT }}>{shortDate(stmt.due)}</p>
+            <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: closed && unpaid > 0 && stmt.due < today() ? "var(--negative)" : "var(--text)", fontFamily: FONT }}>{shortDate(stmt.due)}</p>
           </div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -432,8 +432,8 @@ export default function CardsTab({ language = "EN", expenseCats, fmt, ocrRead, o
             [tr("Cashback", "เงินคืน"), -stmt.cashback, "var(--positive)"],
           ].map(([l, v, col]) => (
             <div key={l} style={{ background: "var(--fill)", borderRadius: 12, padding: "9px 12px" }}>
-              <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: FONT }}>{l}</p>
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: col, fontFamily: MONO }}>{v < 0 ? "−" : ""}{fmt(Math.abs(v))}</p>
+              <p style={{ margin: "0 0 2px", fontSize: 12, fontWeight: 600, color: "var(--text-3)", letterSpacing: 0, fontFamily: FONT }}>{l}</p>
+              <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: col, fontFamily: MONO }}>{v < 0 ? "−" : ""}{fmt(Math.abs(v))}</p>
             </div>
           ))}
         </div>
@@ -441,14 +441,14 @@ export default function CardsTab({ language = "EN", expenseCats, fmt, ocrRead, o
           <button onClick={() => { addEntries([{ kind: "payment", amount: round2(unpaid), note: tr("Statement payment", "ชำระใบแจ้งยอด"), date: today() > stmt.end ? today() : nextDay(stmt.end) }]); showToast(tr("✓ Marked as paid", "✓ บันทึกการชำระแล้ว")); }}
             style={{ ...primaryBtn, marginTop: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Check size={15} /> {tr("Mark paid", "ชำระแล้ว")} · {fmt(unpaid)}</button>
         ) : (
-          <p style={{ margin: "14px 0 0", textAlign: "center", fontSize: 13, fontWeight: 600, color: "var(--positive)", fontFamily: FONT }}>✓ {tr("Paid", "ชำระแล้ว")} {fmt(stmt.paid)}</p>
+          <p style={{ margin: "14px 0 0", textAlign: "center", fontSize: 15, fontWeight: 600, color: "var(--positive)", fontFamily: FONT }}>✓ {tr("Paid", "ชำระแล้ว")} {fmt(stmt.paid)}</p>
         ))}
       </div>
 
       {/* Actions */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
-        <button onClick={() => setSheet("entry")} style={{ ...card, borderRadius: 14, padding: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer", fontFamily: FONT, fontSize: 13, fontWeight: 700, color: "var(--text)" }}><Plus size={15} /> {tr("Add entry", "เพิ่มรายการ")}</button>
-        <label style={{ ...card, borderRadius: 14, padding: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: scanning ? "wait" : "pointer", fontFamily: FONT, fontSize: 13, fontWeight: 700, color: "var(--text)" }}>
+        <button onClick={() => setSheet("entry")} style={{ ...card, borderRadius: 14, padding: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: "pointer", fontFamily: FONT, fontSize: 15, fontWeight: 700, color: "var(--text)" }}><Plus size={15} /> {tr("Add entry", "เพิ่มรายการ")}</button>
+        <label style={{ ...card, borderRadius: 14, padding: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, cursor: scanning ? "wait" : "pointer", fontFamily: FONT, fontSize: 15, fontWeight: 700, color: "var(--text)" }}>
           <Upload size={15} /> {scanning ? `${tr("Reading", "กำลังอ่าน")} ${scanning.i}/${scanning.n}…` : tr("Upload statement", "อัปโหลดใบแจ้งยอด")}
           <input type="file" accept="image/*" multiple hidden disabled={!!scanning} onChange={(e) => { handleStatementUpload(e.target.files); e.target.value = ""; }} />
         </label>
@@ -459,14 +459,14 @@ export default function CardsTab({ language = "EN", expenseCats, fmt, ocrRead, o
           <p style={{ ...label, margin: "0 0 10px 4px" }}>{tr("Active installment plans", "แผนผ่อนชำระ")}</p>
           {plans.map((p) => (
             <div key={p.id} style={{ ...card, borderRadius: 16, padding: "12px 16px", marginBottom: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontFamily: FONT, fontSize: 13 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontFamily: FONT, fontSize: 15 }}>
                 <span style={{ fontWeight: 600, color: "var(--text)" }}>{p.note || tr("Installment", "ผ่อนชำระ")}</span>
                 <span style={{ fontFamily: MONO, color: "var(--text-2)" }}>{fmt(p.amount / p.n)}/{tr("mo", "ด.")}</span>
               </div>
               <div style={{ height: 5, background: "var(--fill)", borderRadius: 99, margin: "8px 0 4px", overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${(p.done / p.n) * 100}%`, background: open.color, borderRadius: 99 }} />
               </div>
-              <p style={{ margin: 0, fontSize: 11, color: "var(--text-3)", fontFamily: FONT }}>{p.done}/{p.n} {tr("paid", "งวด")} · {fmt(p.amount - (p.amount / p.n) * p.done)} {tr("left", "คงเหลือ")}</p>
+              <p style={{ margin: 0, fontSize: 13, color: "var(--text-3)", fontFamily: FONT }}>{p.done}/{p.n} {tr("paid", "งวด")} · {fmt(p.amount - (p.amount / p.n) * p.done)} {tr("left", "คงเหลือ")}</p>
             </div>
           ))}
         </>
@@ -474,7 +474,7 @@ export default function CardsTab({ language = "EN", expenseCats, fmt, ocrRead, o
 
       <p style={{ ...label, margin: "14px 0 10px 4px" }}>{stmt.lines.length + stmt.payments.length} {tr("items this statement", "รายการในรอบนี้")}</p>
       <div style={{ ...card, padding: "4px 16px", marginBottom: 16 }}>
-        {stmt.lines.length + stmt.payments.length === 0 && <p style={{ textAlign: "center", padding: "22px 0", margin: 0, fontSize: 13, color: "var(--text-3)", fontFamily: FONT }}>{tr("Nothing in this cycle yet", "ยังไม่มีรายการในรอบนี้")}</p>}
+        {stmt.lines.length + stmt.payments.length === 0 && <p style={{ textAlign: "center", padding: "22px 0", margin: 0, fontSize: 15, color: "var(--text-3)", fontFamily: FONT }}>{tr("Nothing in this cycle yet", "ยังไม่มีรายการในรอบนี้")}</p>}
         {[...stmt.lines, ...stmt.payments.map((e) => ({ ...e, entryId: e.id, idx: 0, portion: e.amount, label: e.note }))].map((l) => {
           const k = KINDS[l.kind];
           const cat = expenseCats.find((c) => c.value === l.category);
@@ -482,10 +482,10 @@ export default function CardsTab({ language = "EN", expenseCats, fmt, ocrRead, o
             <div key={`${l.entryId}_${l.idx}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 0", borderBottom: "1px solid var(--fill)" }}>
               <div style={{ width: 34, height: 34, borderRadius: 11, background: "var(--fill)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{(l.kind === "purchase" && cat?.icon) || k.icon}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text)", fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l.label || tr(k.en, k.th)}</p>
-                <p style={{ margin: 0, fontSize: 11, color: "var(--text-3)", fontFamily: FONT }}>{shortDate(l.date)} · {tr(k.en, k.th)}</p>
+                <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--text)", fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l.label || tr(k.en, k.th)}</p>
+                <p style={{ margin: 0, fontSize: 13, color: "var(--text-3)", fontFamily: FONT }}>{shortDate(l.date)} · {tr(k.en, k.th)}</p>
               </div>
-              <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 600, color: k.sign < 0 ? "var(--positive)" : "var(--text)" }}>{k.sign < 0 ? "−" : ""}{fmt(l.portion)}</span>
+              <span style={{ fontFamily: MONO, fontSize: 15, fontWeight: 600, color: k.sign < 0 ? "var(--positive)" : "var(--text)" }}>{k.sign < 0 ? "−" : ""}{fmt(l.portion)}</span>
               <button aria-label="Delete" onClick={() => { if (l.kind !== "installment" || (parseInt(l.months) || 1) === 1 || window.confirm(tr("Delete the whole installment plan?", "ลบแผนผ่อนทั้งหมด?"))) setData((p) => ({ ...p, entries: p.entries.filter((e) => e.id !== l.entryId) })); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "var(--text-3)" }}><Trash2 size={13} /></button>
             </div>
           );
